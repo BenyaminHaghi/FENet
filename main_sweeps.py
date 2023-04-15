@@ -276,7 +276,7 @@ if __name__ == '__main__':
                                             scheduler.state_dict() if scheduler else "no scheduler??"   # clean
                                             ]
 
-                        file_label = f"{run.name}-fold{fold}-step{elapsed_steps}"
+                        file_label = f"{run.id}-{run.name}-fold{fold}-step{elapsed_steps}"
 
                         saver.save_if_good(
                             eval_res['eval/timely/decoder-xy-norm-R2'],
@@ -307,7 +307,7 @@ if __name__ == '__main__':
                     run.log({ 'loss': loss.item() })
 
                     elapsed_steps += 1
-            
+
             # save the best performance from this fold, for reporting the average best r2 accross folds
             best_performance_in_this_fold = 0
             while not saver.saved_objects.empty():

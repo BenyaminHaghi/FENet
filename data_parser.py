@@ -74,13 +74,13 @@ def filter_sort_channels_by_R2(bb, R2s, min_R2=0, n_filtered_channels=40):
         #If there is no n_filtered_channels constraint, set the nth_r2 constraint
         #to the min_R2 constraint so it doesn't affect result
         nth_R2 = min_R2
-    
+
     if(min_R2 != None):
         #Choose the tightest R2 constraint
         min_R2 = max(nth_R2, min_R2)
         #Develope a channel mask to be used to filter bb data
         channel_mask = max_xy_R2 >= min_R2
-    else: 
+    else:
         channel_mask = [1] * len(max_xy_R2)
 
     return bb[ :, channel_mask, :]
@@ -214,6 +214,10 @@ def make_total_training_data(data_dir, min_R2=0, n_filtered_channels=40, days=No
 
     # split_data = { split: sum(data_by_day[day_name] for day_name in split_days if days is None or day_name in days)
     #         for split, split_days in day_splits.items() if splits is None or split in splits }
+
+    if (any(k not in ['train', 'dev', 'test'] for k in split_data)):
+        return split_data   # requested special data, lets just return the dict directly
+
     if(load_test_dl):
         return split_data['train'], split_data['dev'], split_data['test']
     else:
