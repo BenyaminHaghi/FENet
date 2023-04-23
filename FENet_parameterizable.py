@@ -664,6 +664,9 @@ def read_checkpoint(checkpoint):
     except Exception as e:
         raise ValueError(f"Couldn't load config from checkpoint {checkpoint}, got error: {e}")
 
+def write_checkpoint(save_path, config, fe_net_state, optimizer_state=None, scheduler_state=None):
+    torch.save([config, fe_net_state, optimizer_state, scheduler_state], save_path)
+
 def make_fenet_from_checkpoint(checkpoint, device, override_shape=None, pls_dims=None):
     """
     must specify override_shape to pass to FENet constructor if config is not included in the checkpoint

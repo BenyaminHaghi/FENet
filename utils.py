@@ -70,17 +70,17 @@ def get_hist_bins(seq, bins=40, min_v=None, max_v=None):
     if max_v is None: max_v = max(seq)
     # print(min_v, max_v, seq)
     bin_starts = []
-    ptr = 0   # inc, exc 
+    ptr = 0   # inc, exc
 
     for i in range(bins):
         # print(f"    i={i}, ptr={ptr}, here={seq[ptr]}, need={(min_v * (1 - i/bins)) + (max_v * i/bins)}")
         # make the ptr catch up to where we need to add a bin
         while ptr < len(seq) and seq[ptr] < (min_v * (1 - i/bins)) + (max_v * i/bins):
-            ptr += 1 
+            ptr += 1
         # now that it's caught up, this must be where the next bin starts
         # print("        adding!!!!")
         bin_starts.append(ptr)
-    
+
     # print(bin_starts)
     return bin_starts
 
