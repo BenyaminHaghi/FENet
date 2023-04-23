@@ -299,7 +299,6 @@ class QuantizedFENet(FENet):
             checkpoint_name=checkpoint_name,
             pls=pls,
             dropout=dropout,
-            cache_intermediate_outputs=cache_intermediate_outputs,
             num_to_cache=num_to_cache)
         from qtorch import FixedPoint
         from qtorch.quant import Quantizer
@@ -307,10 +306,8 @@ class QuantizedFENet(FENet):
         self.wl = wl
         self.fl = fl
         self.quantize = Quantizer(forward_number=FixedPoint(wl=wl, fl=fl, clamp=True, symmetric=True), forward_rounding='nearest')
-        #self.quantize = make_truncate_quantizer(wl, fl)
-        self._cache = cache_intermediate_outputs
         self.num_to_cache = num_to_cache
-        self.cache_formatter = lambda x : x 
+        self.cache_formatter = lambda x : x
         self.pass_layers = [None]*(len(features_by_layer)-2)
         self.feat_layers = [None]*(len(features_by_layer))
 
@@ -480,7 +477,7 @@ def cross_validated_eval(decoder, outputs: torch.Tensor, labels: torch.Tensor, f
     generates `folds` cross-validation folds from `outputs` and `labels`
     calls decoder.train() on each fold
     returns cat of the eval on the validation set
-    
+
     obj = type('MyClass', (object,), {'content':{}})()
     >>> decoder = type('Decoder', (object,), {    'train': lambda _self, inp, lab: None, 'forward': lambda _self, inp: inp[:, :2]    })()
     >>> outputs = torch.tensor([ [0,0,0],[1,1,1],[2,2,2],[3,3,3] ])
@@ -498,7 +495,7 @@ def cross_validated_eval(decoder, outputs: torch.Tensor, labels: torch.Tensor, f
     tot_dev_decoder_preds = torch.zeros(labels.shape)
     rows_filled_counter = 0
     for train_dl, dev_dl in k_folds_manager.make_folds():
-        # train 
+        # train
         train_inp, train_lab = zip(*train_dl)
         decoder.train(torch.vstack(train_inp), torch.vstack(train_lab).cpu().detach().numpy())
 
@@ -514,7 +511,7 @@ def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quanti
     """
     expects inputs shape (n_chunks, n_channels, n_samples)
     """
-    
+
     net.eval()
     n_chunks, n_channels, n_samples = inputs.shape
     inputs = inputs.reshape(n_chunks * n_channels, 1, n_samples) # train on each sample seprately. the middle dimension is 1 is n_conv_channel=1
@@ -542,11 +539,11 @@ def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quanti
             dim_red.train(outputs, labels.cpu().detach().numpy())
             outputs = dim_red.forward(outputs)
         outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
-        
+
         #if(not decoder.trained):
         #    decoder.train(outputs, labels.cpu().detach().numpy())
         if decoder_crossvalidate:
-            return cross_validated_eval(decoder, outputs, torch.from_numpy(labels) if isinstance(labels, np.ndarray) else labels)   # CLEAN: get rid of numpy 
+            return cross_validated_eval(decoder, outputs, torch.from_numpy(labels) if isinstance(labels, np.ndarray) else labels)   # CLEAN: get rid of numpy
         else:
             decoder.train(outputs, labels)
             return decoder.forward(outputs)
@@ -660,31 +657,6 @@ def train_batch(device, net: FENet, dim_red, decoder, optimizer, scheduler, crit
 
     return loss, outputs
 
-def make_qfenet_from_quantized_statedict(data_dir, device='cpu', cache_intermediate_outputs=False, num_to_cache=None):
-    state_dict = torch.load(path_join(data_dir, 'qfe_net.pt'), map_location=torch.device(device))
-    kernel_by_layer = [v.shape[2] for k, v in state_dict.items() if 'feat_l' in k]
-    n_layers = len(kernel_by_layer) + 1
-    stride_by_layer = state_dict["stride_by_layer"]
-    relu_by_layer = state_dict["relu_by_layer"]
-    quantization = state_dict["quantization"]
-    qfe_net = QuantizedFENet(   quantization[0],
-                                quantization[1],
-                                [1]*n_layers,
-                                kernel_by_layer,
-                                stride_by_layer,
-                                relu_by_layer,
-                                checkpoint_name=basename(data_dir),
-                                pls=0,
-                                dropout=0.0,
-                                cache_intermediate_outputs=cache_intermediate_outputs,
-                                num_to_cache=num_to_cache)
-    del(state_dict["stride_by_layer"])
-    del(state_dict["relu_by_layer"])
-    del(state_dict["quantization"])
-    qfe_net.load_state_dict(state_dict)
-    qfe_net.to(device)
-    return qfe_net
-
 def read_checkpoint(checkpoint):
     try:
         config, fe_net_state, optimizer_state, scheduler_state = torch.load(checkpoint)
@@ -719,24 +691,6 @@ def make_fenet_from_checkpoint(checkpoint, device, override_shape=None, pls_dims
     fe_net.load_state_dict(fe_net_state)
     fe_net.to(device)
     return fe_net
-
-def make_QFENet_from_FENet(wl: int, fl: int, fe_net: FENet, device, quantize_weights=True, cache_intermediate_outputs=False, num_to_cache=None):
-    ret = QuantizedFENet(   wl,
-                            fl,
-                            fe_net.features_by_layer,
-                            fe_net.kernel_by_layer,
-                            fe_net.stride_by_layer,
-                            fe_net.relu_by_layer,
-                            fe_net.checkpoint_name + f"_wl{wl}_fl{fl}",
-                            pls=fe_net.pls,
-                            cache_intermediate_outputs=cache_intermediate_outputs,
-                            num_to_cache=num_to_cache)
-    if quantize_weights:
-        ret.load_state_dict(quantize_state_dict(wl, fl, fe_net.state_dict()))
-    else:
-        ret.load_state_dict(fe_net.state_dict())
-    ret.to(device)
-    return ret
 
 
 if __name__ == '__main__':
