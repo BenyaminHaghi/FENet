@@ -4,6 +4,8 @@
 - [ ] export environment.yml
 - [ ] update the File Structure mermaid diagram below
 - [ ] remove dead code
+- [ ] fix TODOs
+- [ ] add batchnorm
 
 ## Getting Started
 Set the following environment variables:

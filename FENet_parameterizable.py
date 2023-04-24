@@ -17,7 +17,6 @@ import numpy as np
 
 # constants
 from configs import ATTEMPT_GPU
-from configs import QUANTIZED_WORD_LENGTH
 
 # runtime variables
 device = torch.device('cuda:0' if ATTEMPT_GPU and torch.cuda.is_available() else 'cpu')
@@ -60,9 +59,7 @@ class WaveletConvolution(nn.Module):
                        feat_out_channels, feat_kernel_size, feat_stride,
                        pass_out_channels, pass_kernel_size, pass_stride,
                        feat_kwargs={}, pass_kwargs={},
-                       dropout=0.2, activation_fn=nn.LeakyReLU(-1),
-                       cache_intermediate_outputs=False,
-                       num_to_cache=None):
+                       dropout=0.2, activation_fn=nn.LeakyReLU(-1)):
         """
         Use the `feat_kwargs` and `pass_kwargs` arguments to forward optional
         arguments to the underlying nn.Conv1d layers.
@@ -88,9 +85,6 @@ class WaveletConvolution(nn.Module):
             #self.pool = BitshiftApproxAveragePool()    # divide by nearest power of 2 instead, bc hardware
         self.dropout = dropout
         self.activation_fn = activation_fn
-        self._cache = cache_intermediate_outputs
-        self.num_to_cache = num_to_cache
-        self.output_cache = [None]*2
 
     def forward(self, x):
         """
@@ -106,10 +100,6 @@ class WaveletConvolution(nn.Module):
         pass_x = self.pass_l(pass_x)
         feat_x = self.activation_fn(feat_x)
 
-        num_to_cache = batch_size if self.num_to_cache is None else self.num_to_cache
-
-        if self._cache: self.output_cache[0] = self.activation_fn(pass_x[0:num_to_cache, :, :])
-        if self._cache: self.output_cache[1] = feat_x[0:num_to_cache, :, :]
 
         feat_x = self.pool(feat_x)
         feat_x = feat_x.view(batch_size, self.features) # flatten feat_x into 1d array per batch-element*neural-channel
@@ -118,23 +108,15 @@ class WaveletConvolution(nn.Module):
 
         return feat_x, pass_x
 
-# TODO: quantize before pooling
-
 class FENet(nn.Module):
     def __init__(self,
                  features_by_layer=[1]*8,
-                  kernel_by_layer=[40]*7,
-                   stride_by_layer=[2]*7,
-                   relu_by_layer=[0]*7,
-                    annealing_alpha=0.01,
-                     thermal_sigma=0.001,
-                    anneal_eval_window=8,
-                            anneal=False,
-                    checkpoint_name=None,
-                                   pls=2,
-                             dropout=0.2,
-                     cache_intermediate_outputs=False,
-                     num_to_cache=None):
+                 kernel_by_layer=[40]*7,
+                 stride_by_layer=[2]*7,
+                 relu_by_layer=[0]*7,
+                 checkpoint_name=None,
+                 pls=2,
+                 dropout=0.2):
         """
         `features_by_layer`: an array of how many features each layer should return. The last element is the number of features of the output of the full convolutional stack.
         """
@@ -162,24 +144,12 @@ class FENet(nn.Module):
                 feat_out_channels=1, feat_kernel_size=kernel, feat_stride=stride, feat_kwargs={ 'bias': False },
                 pass_out_channels=1, pass_kernel_size=kernel, pass_stride=stride, pass_kwargs={ 'bias': False },
                 dropout=dropout, activation_fn=activation_fn,
-                cache_intermediate_outputs=cache_intermediate_outputs, num_to_cache=num_to_cache
             )
             for feats, kernel, stride, activation_fn in zip(features_by_layer[:-1], kernel_by_layer, stride_by_layer, self.activation_fn) ])
 
-        # self.anneal_noise = [[(torch.randn(weights_pass.size(), device=weights_pass.device) * annealing_alpha,
-        #                        torch.randn(weights_feat.size(), device=weights_feat.device) * annealing_alpha)
-        #     for weights_pass, weights_feat in zip(layer.pass_l.parameters(), layer.feat_l.parameters())]
-        #     for layer in self.layers]
-        self.pool = BitshiftApproxAveragePool()
-        self.annealing_alpha = annealing_alpha
-        self.thermal_sigma = thermal_sigma
-        self.running_annealed_loss = 0
-        self.running_non_annealed_loss = 0
-        self.loss_recieved_counter = 0
-        self.anneal_eval_window = anneal_eval_window
-        self.anneal=anneal
+        self.pool = BitshiftApproxAveragePool() # TODO: adaptive average pool?
 
-    def forward(self, x, use_annealed_weights=False):
+    def forward(self, x):
         """
         Expects a tensor of electrode streams, shape = (batch_size * n_channels=192, in_channels, n_samples=900)
         Returns a tensor of electrode features, shape = (batch_size * n_channels=192, sum(features_by_layer))
@@ -188,18 +158,6 @@ class FENet(nn.Module):
         pass_x = x
 
         # feed `x` through FENet, storing intermediate `feat_x`s along the way
-        # if(self.anneal and use_annealed_weights):
-            # annealed_layers = self.layers
-            # for anneal_noise, wvlt_cnn_layer in zip(self.anneal_noise, annealed_layers):
-                # for pass_noise, feat_noise, weights_pass, weights_feat in zip(anneal_noise[0][0],
-                                                                            #   anneal_noise[0][1],
-                                                        #    wvlt_cnn_layer.pass_l.parameters(),
-                                                        #    wvlt_cnn_layer.feat_l.parameters()):
-                    # weights_pass.add_(pass_noise.to(weights_pass.device))
-                    # weights_feat.add_(feat_noise.to(weights_feat.device))
-
-        # for wvlt_cnn_layer in tqdm(annealed_layers if (use_annealed_weights and self.anneal) else self.layers, desc="fenet layer", leave=False):
-        # for wvlt_cnn_layer in (annealed_layers if (use_annealed_weights and self.anneal) else self.layers):
         for wvlt_cnn_layer in self.layers:
             feat_x, pass_x = wvlt_cnn_layer(pass_x)
             features_list.append(feat_x)
@@ -218,180 +176,6 @@ class FENet(nn.Module):
         x_total_feat = torch.cat(features_list, dim=1)
 
         return x_total_feat
-
-    # def anneal_weights(self):
-    #     self.anneal_noise = [[(torch.randn(weights_pass.size(), device=weights_pass.device) * self.annealing_alpha,
-    #                            torch.randn(weights_feat.size(), device=weights_feat.device) * self.annealing_alpha)
-    #         for weights_pass, weights_feat in zip(layer.pass_l.parameters(), layer.feat_l.parameters())]
-    #         for layer in self.layers]
-
-    # def save_annealed_weights(self, losses=None):
-
-    #     if(losses !=None):
-    #         #store a running sum of each of the losses
-    #         self.running_annealed_loss += losses[0]
-    #         self.running_non_annealed_loss += losses[1]
-    #         #when a full evaluation windown of losses is obtained, compute the average
-    #         if(self.anneal_eval_window > self.loss_recieved_counter):
-    #             self.anneal_eval_window += 1
-    #             return False
-    #         else:
-    #             self.running_annealed_loss = 0
-    #             self.running_non_annealed_loss = 0
-    #             self.loss_recieved_counter = 0
-    #             avg_annealed_loss = self.running_annealed_loss/self.anneal_eval_window
-    #             avg_non_annealed_loss = self.running_non_annealed_loss/self.anneal_eval_window
-    #             #if on average the annealed weight is better, keep it and continue with saving
-    #             #the new weight, otherwise, overwrite with a new weight set an return before
-    #             #saving
-    #             if(avg_non_annealed_loss < avg_annealed_loss):
-    #                 self.anneal_weights()
-    #                 return False
-
-    #     for anneal_noise, wvlt_cnn_layer in zip(self.anneal_noise, self.layers):
-    #         for pass_noise, feat_noise, weights_pass, weights_feat in zip(anneal_noise[0][0],
-    #                                                                       anneal_noise[0][1],
-    #                                                    wvlt_cnn_layer.pass_l.parameters(),
-    #                                                    wvlt_cnn_layer.feat_l.parameters()):
-    #                 weights_pass.data = torch.add(weights_pass.data, pass_noise.to(weights_pass.device))
-    #                 weights_pass.feat = torch.add(weights_feat.data, feat_noise.to(weights_feat.device))
-    #     self.annealing_alpha = self.annealing_alpha*self.thermal_sigma
-    #     return True
-
-
-def make_truncate_quantizer(wl, fl):
-    # just use fxpmath.Fxp if this gets scuffed—supports truncation and wrap
-    def truncate_quantize(mat):
-        mat = torch.fmod(mat, 2**(wl-1-fl))
-        # print('clamped', mat)
-        mat = torch.trunc(mat * 2**fl)
-        mat = mat / 2**fl
-        # print('trunced', mat)
-        return mat
-    return truncate_quantize
-
-class QuantizedFENet(FENet):
-    """
-    FENet with quantization. See FENet class for more docs.
-    OPTM: allow using different quantization for weights and values
-    """
-    def __init__(   self,
-                    wl,
-                    fl,
-                    features_by_layer,
-                    kernel_by_layer,
-                    stride_by_layer,
-                    relu_by_layer,
-                    checkpoint_name,
-                    pls,
-                    cache_intermediate_outputs=True,
-                    num_to_cache=None,
-                    dropout=0.2):
-        super(QuantizedFENet, self).__init__(
-            features_by_layer,
-            kernel_by_layer,
-            stride_by_layer,
-            relu_by_layer,
-            annealing_alpha=0.01,
-            thermal_sigma=0.001,
-            anneal_eval_window=8,
-            anneal=False,
-            checkpoint_name=checkpoint_name,
-            pls=pls,
-            dropout=dropout,
-            num_to_cache=num_to_cache)
-        from qtorch import FixedPoint
-        from qtorch.quant import Quantizer
-        from numpy import ndarray
-        self.wl = wl
-        self.fl = fl
-        self.quantize = Quantizer(forward_number=FixedPoint(wl=wl, fl=fl, clamp=True, symmetric=True), forward_rounding='nearest')
-        self.num_to_cache = num_to_cache
-        self.cache_formatter = lambda x : x
-        self.pass_layers = [None]*(len(features_by_layer)-2)
-        self.feat_layers = [None]*(len(features_by_layer))
-
-    def forward(self, x):
-        """
-        Same as the normal FENet.forward() except with quantization
-        """
-        from numpy import concatenate
-        features_list = []  # todo-optm: preallocate zeros, then copy feat_x output into the ndarray
-        # if self.cache: self.values_hist_data[0] += x.flatten().tolist()
-        pass_x = self.quantize(x)
-
-        # feed `x` through FENet, storing intermediate `feat_x`s along the way
-        for i, wvlt_cnn_layer in enumerate(self.layers):
-
-            feat_x, pass_x, self.poolDivisor[i] = wvlt_cnn_layer(pass_x, return_poolDivisor=True)
-
-            #Quantize the intermediates/features. if this is the last layer, save a copy for final
-            #processing
-            feat_x = self.quantize(feat_x)
-            if(i == len(self.kernel_by_layer)-1):
-                pre_quantized_pass_layer = pass_x
-            pass_x = self.quantize(pass_x)
-
-            #Cahce results
-            features_list.append(feat_x)
-
-            if self._cache:
-                if(i < len(self.kernel_by_layer)-1):
-                    if self.pass_layers[i] == None:
-                        self.pass_layers[i] = self.cache_formatter(pass_x if self.num_to_cache is None else pass_x[0:self.num_to_cache, :, :])
-                    else:
-                        self.pass_layers[i].append(self.cache_formatter(pass_x if self.num_to_cache is None else pass_x[0:self.num_to_cache, :, :]))
-
-                if self.feat_layers[i] == None:
-                    self.feat_layers[i] = wvlt_cnn_layer.output_cache[1]
-                else:
-                    self.feat_layers[i].append(wvlt_cnn_layer.output_cache[1])
-
-        # end case: non-linear + adaptive_avgpool the output of the
-        # WaveletConvolution stack to create the final feature
-        if self.feat_layers[-1] == None:
-            self.feat_layers[-1] = wvlt_cnn_layer.output_cache[0]
-        else:
-            self.feat_layers[-1].append(wvlt_cnn_layer.output_cache[0])
-        final_feat = self.activation_fn[-1](pre_quantized_pass_layer)
-        final_feat, self.poolDivisor[-1] = self.pool(final_feat, return_poolDivisor=True)
-        final_feat = self.quantize(final_feat)
-        final_feat = final_feat.view(-1, self.features_by_layer[-1]) # flatten feat_x into 1d array per batch-element*neural-channel
-        features_list.append(final_feat)
-
-        # concatenate the features from each layer for the final output
-        x_total_feat = torch.cat(features_list, dim=1)
-
-        return x_total_feat
-
-    def set_cache_format(self, cache_format, total_length=QUANTIZED_WORD_LENGTH):
-        from numpy import vectorize
-        from functools import partial
-        from export import convert_to_hex, convert_to_oct, convert_to_bin
-
-        enforce_np = lambda x : x.cpu().detach().numpy() if isinstance(x, torch.Tensor) else x
-
-        match cache_format:
-            case 'Float':
-                formatter = lambda x : x
-            case 'Hex':         formatter = partial(convert_to_hex, sign_mag=True,  wl=self.wl, fl=self.fl)
-            case 'Oct':         formatter = partial(convert_to_oct, sign_mag=True,  wl=self.wl, fl=self.fl)
-            case 'Bin':         formatter = partial(convert_to_bin, sign_mag=True,  wl=self.wl, fl=self.fl)
-            case 'Hex_2s_comp': formatter = partial(convert_to_hex, sign_mag=False, wl=self.wl, fl=self.fl)
-            case 'Oct_2s_comp': formatter = partial(convert_to_oct, sign_mag=False, wl=self.wl, fl=self.fl)
-            case 'Bin_2s_comp': formatter = partial(convert_to_bin, sign_mag=False, wl=self.wl, fl=self.fl)
-            case other:
-                raise ValueError(f"unknown FENet cache format type `{other}`")
-
-        if cache_format != 'Float':
-            formatter = vectorize(partial(formatter, wl=self.wl, fl=self.fl, total_length=total_length))
-
-        self.cache_formatter = lambda x : formatter(enforce_np(x))
-    def clear_cache(self):
-        self.pass_layers = [None]*(len(self.features_by_layer)-1)
-        for layer in self.layers:
-            layer.output_cache = torch.tensor([])
-
 
 
 def make_daubechies_wavelet_initialization(fe_net):
@@ -450,26 +234,6 @@ def make_daubechies_wavelet_initialization(fe_net):
 
     return new_weights_dict
 
-def quantize_state_dict(wl, fl, state_dict):
-    """
-    Quantizes the weights in a state dict using the provided num format
-
-    Use like:
-    ```python
-    fe_net = FENet(...)
-    fe_net.load_state_dict(quantize_weights(wl, fl, torch.load('path')))
-    ```
-    """
-    from qtorch.quant import fixed_point_quantize
-
-    new_state_dict = {}
-
-    for key, mat in state_dict.items():
-        new_state_dict[key] = fixed_point_quantize(mat, wl=wl, fl=fl, rounding='nearest')
-
-    return new_state_dict
-
-
 
 def cross_validated_eval(decoder, outputs: torch.Tensor, labels: torch.Tensor, folds: int=10):
     """
@@ -507,7 +271,7 @@ def cross_validated_eval(decoder, outputs: torch.Tensor, labels: torch.Tensor, f
     return tot_dev_decoder_preds
 
 
-def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quantization=None, batch_size=None, decoder_crossvalidate=False):
+def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, batch_size=None, decoder_crossvalidate=False):
     """
     expects inputs shape (n_chunks, n_channels, n_samples)
     """
@@ -566,58 +330,6 @@ def train_batch(device, net: FENet, dim_red, decoder, optimizer, scheduler, crit
     net =  net.to(device)
     labels = labels.to(device)
     labels_np = labels.cpu().detach().numpy()
-
-    # if(net.anneal):
-    #     net.eval()
-    #     with torch.no_grad():
-    #         test_criterion = criterion
-    #         annealed_test_criterion = criterion
-
-    #         if batch_size == None:
-    #             inputs = inputs.to(device)
-    #             outputs = net(inputs)
-    #         else:
-    #             outputs = []
-    #             for batch in torch.split(inputs, batch_size):
-    #                 batch = batch.to(device)
-    #                 outputs.append(net(batch))
-    #             outputs = torch.cat(outputs)
-    #         outputs = outputs.reshape(n_chunks, n_channels, len(net.features_by_layer))    # (batch_size * n_channels, n_samples) -> (batch_size * n_channels, n_features); TODO: should len(features_by_layer) be sum(features_by_layer)
-
-    #         if(net.pls != None and net.pls > 0):
-    #             dim_red.train(outputs, labels_np)
-    #         #print("\n\noutputs shape", outputs.shape)
-    #         if(net.pls != None and net.pls > 0):
-    #             if(not dim_red.trained):
-    #                 dim_red.train(outputs, labels_np)
-    #             outputs = dim_red.forward(outputs)
-    #         outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)
-    #         if(not decoder.trained):
-    #             decoder.train(outputs, labels_np)
-    #         predictions = decoder.forward(outputs)
-    #         loss = test_criterion(predictions.float(), labels.float())   # TODO: expensive
-
-
-    #         if batch_size == None:
-    #             inputs = inputs.to(device)
-    #             outputs = net(inputs)
-    #         else:
-    #             outputs = []
-    #             for batch in torch.split(inputs, batch_size):
-    #                 batch = batch.to(device)
-    #                 outputs.append(net(batch, use_annealed_weights=True))
-    #             outputs = torch.cat(outputs)
-    #         outputs = outputs.reshape(n_chunks, n_channels, len(net.features_by_layer))    # (batch_size * n_channels, n_samples) -> (batch_size * n_channels, n_features)
-
-    #         if(net.pls != None and net.pls > 0):
-    #             outputs = dim_red.forward(outputs)
-    #         outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)
-    #         if(not decoder.trained):
-    #             decoder.train(outputs, labels_np)
-    #         predictions = decoder.forward(outputs)
-    #         annealed_loss = annealed_test_criterion(predictions, labels)   # TODO: expensive
-
-    #     if(net.save_annealed_weights(losses=(annealed_loss, loss))): net.anneal_weights()
 
     net.train()
 
