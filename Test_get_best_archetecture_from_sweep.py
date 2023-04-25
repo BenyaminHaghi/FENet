@@ -9,6 +9,8 @@ from decoder import PLS_Model
 RUN_NAME = "F:/Ben/fenet_sweeps_save/absurd-sweep-4" # used with a glob later
 device = 'cuda'
 
+def evaluate_model(model):
+    return
 
 if __name__ == "__main__":
     withheld_model_selection_val_set = make_total_training_data(DATA_DIR, n_filtered_channels=192, splits=['dev-sweep-selection'])

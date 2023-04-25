@@ -35,9 +35,10 @@ def R2_avg_criterion(preds_dl, labels_dl, device, quantization=None):
     return { 'timely/avg-decoder-R2': tot_r2 / len(preds_dl) }
 
 def R2_hist_criterion(preds_dl, labels_dl, device, quantization=None):
-
-    r2s = [ r2_score(labels, preds) for labels, preds in zip(labels_dl, preds_dl) ]
-
+    r2s = []
+    for preds, labels in zip(preds_dl, labels_dl):
+        r2 = r2_score(labels, preds)
+        r2s.append(r2)
     wandb.log({ 'histogramhistogramhistogram': wandb.Histogram(np.array(r2s).flatten()) }, commit=False)
     return { 'timely/decoder-R2': wandb.Histogram(np.array(r2s).flatten()) }
 

@@ -21,11 +21,13 @@ from configs import USE_MULTITHREADED_WORKERS
 from configs import MAX_POOL_WORKERS
 from configs import THREAD_CONTEXT
 
-from configs import EFFICIENCY_METRIC_INPUT_LEN
+from configs import EFFICIENCY_METRIC_INPUT_LEN, COMPUTE_COST_DIVISOR
 from FENet_parameterizable import train_batch
 
 #print('importing modules...')
+from torch import optim
 from torch.cuda import is_available as cuda_is_available
+from pandas import DataFrame
 
 import wandb
 
@@ -197,6 +199,7 @@ if __name__ == '__main__':
             from criteria import EfficiencyCriterion
             from criteria import R2_avg_criterion, R2_hist_criterion, axes_plot_criterion, directional_R2_criterion, mean_squared_error_criterion
             from criteria import evaluate_with_criteria
+            # from utils import seed_everything, BestEpochSaver, KFoldsGenerator
 
             from functools import partial
             import os
@@ -212,7 +215,9 @@ if __name__ == '__main__':
             efficiency_crit = EfficiencyCriterion(fe_net)
             compute_cost = efficiency_crit.evaluate(EFFICIENCY_METRIC_INPUT_LEN)
 
+            #print("Cost computed")
             run.log(compute_cost, commit=False)
+            run.log({ 'compute_cost_divisor': COMPUTE_COST_DIVISOR }, commit=False)
             compute_cost = compute_cost['efficiency/operations-per-eval']
 
             elapsed_steps = 0
@@ -287,6 +292,7 @@ if __name__ == '__main__':
                             # 'compute-cost': compute_cost,
                             # 'unquantized-R², (8, 5)-over-cost': eval_res['eval/decoder-retrain/R²'] / compute_cost,
                             'unquantized-perf-cost-ratio': eval_res['eval/timely/avg-decoder-R2'] / compute_cost,
+                            'unquantized-perf-cost-combo': eval_res['eval/timely/avg-decoder-R2'] - compute_cost / COMPUTE_COST_DIVISOR,
                         }
 
                         # perf to cost ratio with quantized... maybe? or is this implemented wrong?
