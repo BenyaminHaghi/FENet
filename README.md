@@ -1,7 +1,7 @@
 # FENet_Model
 
 ## TODO:
-- [ ] export environment.yml
+- [x] export environment.yml
 - [ ] just check the batchnorm performance
 - [ ] revert the deletions
 - [ ] wandb docs. or sweep.yml?
