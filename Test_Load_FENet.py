@@ -1,4 +1,4 @@
-path = 'F:/Ben/fenet_sweeps_save/absurd-sweep-222-fold0-step8_step-8_perf-0.5797'
+path = './FENet_Max'
 from FENet_parameterizable import make_fenet_from_checkpoint, read_checkpoint
 from criteria import evaluate_with_criteria
 from criteria import directional_R2_criterion
