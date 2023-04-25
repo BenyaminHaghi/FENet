@@ -44,7 +44,7 @@ def load_hdf5_data(fname, verbose=False):
     R2 = np.transpose(matlab_data['CVR2'][:][:])
     return matlab_data, neural_cell, targets, R2
 
-def standard_scalar_normalize(ndarray):
+def standard_scalar_normalize(ndarray) -> np.ndarray:
     from sklearn.preprocessing import StandardScaler
     sc = StandardScaler(copy=False)
     arr = sc.fit_transform(ndarray)

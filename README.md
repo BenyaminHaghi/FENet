@@ -2,10 +2,13 @@
 
 ## TODO:
 - [ ] export environment.yml
-- [ ] update the File Structure mermaid diagram below
-- [ ] remove dead code
-- [ ] fix TODOs
-- [ ] add batchnorm
+- [ ] just check the batchnorm performance
+- [ ] revert the deletions
+- [ ] wandb docs. or sweep.yml?
+- [ ] automatically return the best model? of 400 sweeps
+- [x] ~~update the File Structure mermaid diagram below~~ remove mermaid diagram
+- [x] ~~remove dead code~~ else the history will diverge
+- [x] fix TODOs
 
 ## Getting Started
 Set the following environment variables:
@@ -23,101 +26,8 @@ conda env activate mics-fenet
 ```
 Then, launch a run with `python3 main_sweeps.py`, installing Python packages as necessary.
 
+### Ease of Use
+- run the sweeps and save the best model
+- pick the model with the highest performance
+- load the model for use 
 
-## File Structure
-
-This diagram details how the repository is layed out.
-
-```mermaid
-classDiagram
-
-class FENet_Training {
-    PLS_Generation()
-}
-
-class FENet_parameterizable {
-    FENet
-    QuantizedFENet
-
-    make_fenet_from_checkpoint()
-    make_QFENet_from_FENet()
-    inference_batch()
-}
-
-class criteria {
-    evaluate_with_criteria﴾﴿
-    EfficiencyCriterion
-    QuantizationCriterion
-    
-    R2_avg_criterion()
-    R2_hist_criterion()
-    axes_plot_criterion()
-    directional_R2_criterion()
-}
-
-class data_parser {
-    make_total_training_data()
-    pickle_memoize()
-}
-
-class decoder {
-    compute_linear_decoder_loss_preds()
-}
-
-class explore_data {
-    show_precision_distribution()
-    show_heatmap()
-}
-
-class explore_model {
-    make_quantization_stochastic_error_charts()
-    make_quantization_decoder_histograms()
-    make_model_weights_histogram()
-}
-
-class export {
-    export_for_ndt()
-    export_weights_for_hardware()
-    export_data_for_hardware()
-}
-
-class utils {
-    KFoldsGenerator
-    BestEpochSaver
-    seed_everything()
-    make_outputs_directory()
-}
-
-class main_sweeps {
-    DATA_DIR
-    reset_wandb_env()
-    initialize()
-    train_batch()
-    kfolds_train_worker()
-}
-
-FENet_Training <-- FENet_parameterizable 
-
-FENet_parameterizable <-- main_sweeps
-main_sweeps ..> data_parser
-criteria <-- main_sweeps
-main_sweeps ..> utils
-
-FENet_parameterizable <-- export
-export ..> data_parser
-criteria <-- export
-export ..> utils
-
-FENet_parameterizable <-- explore_model
-explore_model ..> data_parser
-criteria <-- explore_model
-explore_model ..> utils
-
-FENet_parameterizable <-- criteria
-decoder <-- criteria
-data_parser <-- explore_data 
-
-data_parser <-- parameter_estimation
-data_parser <-- emperical_best_channels
-main_sweeps <-- emperical_best_channels
-```
