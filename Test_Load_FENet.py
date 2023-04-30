@@ -15,7 +15,7 @@ import pickle
 
 
 def test_data_maker():
-    _, _, withheld_test_dl = make_total_training_data(DATA_DIR, splits = ['test'])
+    _, _, withheld_test_dl = make_total_training_data(DATA_DIR, splits = ['test'], n_filtered_channels=None)
     return withheld_test_dl
 if (LOAD_LOCAL_DATA_CACHE):
     data_pickle_name = f'total_training_data_minR2-{FILTERING_MIN_R2}_nchan-{FILTERING_MIN_R2}_WITHHELD_TEST.pkl'

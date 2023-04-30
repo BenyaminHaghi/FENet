@@ -41,7 +41,10 @@ def load_hdf5_data(fname, verbose=False):
     neural_cell = matlab_data['neural_cell'][()]
     targets = np.transpose(matlab_data['targets'][:][:]).astype(np.float32)
     targets = target_normalization_centralization(targets)
-    R2 = np.transpose(matlab_data['CVR2'][:][:])
+    if 'CVR2' in matlab_data:
+        R2 = np.transpose(matlab_data['CVR2'][:][:])
+    else:
+        R2 = None
     return matlab_data, neural_cell, targets, R2
 
 def standard_scalar_normalize(ndarray) -> np.ndarray:
@@ -50,7 +53,7 @@ def standard_scalar_normalize(ndarray) -> np.ndarray:
     arr = sc.fit_transform(ndarray)
     return arr
 
-def filter_sort_channels_by_R2(bb, R2s, min_R2=0, n_filtered_channels=40):
+def filter_sort_channels_by_R2(bb, R2s, min_R2=0, n_filtered_channels=None):
     """
     filters data by each channel by two parameters. The first is minimum R2
     and the second is the number of filtered channels. Number of filtered
@@ -59,8 +62,11 @@ def filter_sort_channels_by_R2(bb, R2s, min_R2=0, n_filtered_channels=40):
     an R2 larger than min_R2 will be kept. Othewise, if the top n channels constraint
     is stricter, those channels will be taken.
     """
-    if(n_filtered_channels != None or min_R2 != None):
+
+    if(n_filtered_channels != None or (min_R2 != None and min_R2 > 0)):
         #find the max r2 for each channel betwen x and y
+        assert R2s is not None
+        assert bb.shape[1] == R2s.shape[0], "Must have R2s for each channel!"
         stream_len, n_channels, n_samples = bb.shape
         max_xy_R2 = np.where(R2s[:,0]>R2s[:,1], R2s[:,0], R2s[:,1])
     else:
@@ -113,6 +119,8 @@ def make_augmented_data_from_file(fname):
         labels_list.append(targets[tot_seen_len : tot_seen_len+sess_len])   # remember the corresponding slice of targets
         tot_seen_len += sess_len
 
+    print("make augmented data", R2[:10])
+
     return bb_data, labels_list, R2
 
 @cached(cache={}, key=lambda fname, creation_callback, verbose=False: hashkey(fname))
@@ -141,7 +149,7 @@ def pickle_memoize(fname, creation_callback, verbose=False):
             if verbose: print("couldn't pickle the object! :(", err, file=stderr)
         return got
 
-def make_data_from_day(data_dir, day_name, min_R2=0, n_filtered_channels=40, channel_mask=None, pbar=None):
+def make_data_from_day(data_dir, day_name, min_R2=0, n_filtered_channels=None, channel_mask=None, pbar=None):
     """
     get the broadband data and labels for the given day, using channel_mask and falling back to R2 filtering
     """
@@ -158,7 +166,11 @@ def make_data_from_day(data_dir, day_name, min_R2=0, n_filtered_channels=40, cha
 
     # filter out bad channels, either by R2 or mask
     if channel_mask is None:
-        bb_list = [ filter_sort_channels_by_R2(bb, R2_by_channel, min_R2, n_filtered_channels) for bb in bb_list ]
+        if R2_by_channel is not None:
+            bb_list = [ filter_sort_channels_by_R2(bb, R2_by_channel, min_R2, n_filtered_channels) for bb in bb_list ]
+        else:
+            if min_R2 > 0 or n_filtered_channels is not None: 
+                raise ValueError(f"Tried to filter_sort_channels_by_R2 because of min_R2 {min_R2}, n_filtered_channels {n_filtered_channels}, but R2 was not found in the data.")
     else:
         bb_list = [ bb[:, :, channel_mask] for bb in bb_list ]
 
@@ -172,7 +184,7 @@ def make_data_from_day(data_dir, day_name, min_R2=0, n_filtered_channels=40, cha
     if pbar is not None: pbar.update(1)
     return list(zip(torched_bb, torched_targets))
 
-def make_total_training_data(data_dir, min_R2=0, n_filtered_channels=40, days=None, splits=None, channel_mask={}, load_test_dl=True):
+def make_total_training_data(data_dir, min_R2=0, n_filtered_channels=None, days=None, splits=None, channel_mask={}, load_test_dl=True):
     #channel mask expects a dict with the key as the day lablel or index and the value is an array of bools the total
     #lenght of the number of channels with each value indicating if the channel is enabled or not
     #Note, DO NOT have duplicate days in different sets. you shouldn't anyway

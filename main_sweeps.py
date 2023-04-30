@@ -6,7 +6,7 @@ import math
 from configs import DATA_DIR, EVAL_WITH_QUANTIZATION, EVAL_WLFL_PAIRS, FENET_MEMLIMIT_SERIAL_BATCH_SIZE
 from configs import MODEL_SAVE_DIR
 from configs import FILTERING_MIN_R2
-from configs import FILTERING_N_TOP_CHANNELS
+from configs import TRAIN_FILTERING_N_TOP_CHANNELS
 
 from configs import HYPER_PARAM_CONFIG as CONFIG
 
@@ -145,7 +145,7 @@ if __name__ == '__main__':
         with open(data_pickle_name, 'rb') as rf: train_dl, dev_dl = pickle.load(rf)
     else:
         from data_parser import make_total_training_data
-        train_dl, dev_dl = make_total_training_data(DATA_DIR, FILTERING_MIN_R2, FILTERING_N_TOP_CHANNELS, load_test_dl=False)
+        train_dl, dev_dl = make_total_training_data(DATA_DIR, FILTERING_MIN_R2, TRAIN_FILTERING_N_TOP_CHANNELS, load_test_dl=False)
         if(SAVE_LOCAL_DATA_CACHE):
             #Test data_set is not touched during training
             with open(data_pickle_name, 'wb') as wf: pickle.dump([train_dl, dev_dl], wf); print("pick? led.")
@@ -183,7 +183,7 @@ if __name__ == '__main__':
         # run.config['agg-run.id'] = sweep_run.id
         # run.config['agg-run.name'] = sweep_run.name
         # run.config['agg-run.numeric-hash'] = sweep_run_numeric_hash  # numeric constant tied to config for coloring by config via color axis
-        run.config['n_channels'] = FILTERING_N_TOP_CHANNELS
+        run.config['n_channels'] = TRAIN_FILTERING_N_TOP_CHANNELS
 
         for fold, (train_dl, dev_dl) in enumerate(k_folds_manager.make_folds()):
             # jankily log each fold sequentially. better the alternative which requires multiprocessing
@@ -203,7 +203,7 @@ if __name__ == '__main__':
 
             from functools import partial
             import os
-            from configs import FILTERING_N_TOP_CHANNELS
+            from configs import TRAIN_FILTERING_N_TOP_CHANNELS
             from utils import filter_dict
             import traceback
 
