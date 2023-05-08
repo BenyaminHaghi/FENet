@@ -167,7 +167,7 @@ class LoadModel_exp2(nn.Module):
         x_feat = torch.cat((x_feat, self.adaptive_avg_pool(self.nl(x))), dim = 2)
         x_feat = x_feat.view(-1,in_channels*x_feat.shape[2])
 
-        x_feat = self.bn(x_feat)
+        # x_feat = self.bn(x_feat)
         return x_feat, self.lpf1.weight.data, self.hpf1.weight.data, self.lpf2.weight.data, self.hpf2.weight.data, self.lpf3.weight.data, self.hpf3.weight.data, self.lpf4.weight.data, self.hpf4.weight.data, self.lpf5.weight.data, self.hpf5.weight.data, self.lpf6.weight.data, self.hpf6.weight.data, self.lpf7.weight.data, self.hpf7.weight.data
 
 class NewModel_exp2(nn.Module):
@@ -281,8 +281,9 @@ class NewModel_exp2(nn.Module):
         x_feat = torch.cat((x_feat, self.adaptive_avg_pool(self.nl(x))), dim = 2)
         x_feat = x_feat.view(-1,in_channels*x_feat.shape[2])
 
-        x_feat = self.bn(x_feat)
-        return x_feat, self.lpf1.weight.data, self.hpf1.weight.data, self.lpf2.weight.data, self.hpf2.weight.data, self.lpf3.weight.data, self.hpf3.weight.data, self.lpf4.weight.data, self.hpf4.weight.data, self.lpf5.weight.data, self.hpf5.weight.data, self.lpf6.weight.data, self.hpf6.weight.data, self.lpf7.weight.data, self.hpf7.weight.data
+        # x_feat = self.bn(x_feat)
+        # return x_feat, self.lpf1.weight.data, self.hpf1.weight.data, self.lpf2.weight.data, self.hpf2.weight.data, self.lpf3.weight.data, self.hpf3.weight.data, self.lpf4.weight.data, self.hpf4.weight.data, self.lpf5.weight.data, self.hpf5.weight.data, self.lpf6.weight.data, self.hpf6.weight.data, self.lpf7.weight.data, self.hpf7.weight.data
+        return x_feat
 
 
 def Loss_Function(X, y):
