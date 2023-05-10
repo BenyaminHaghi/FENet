@@ -16,7 +16,7 @@ N = 8
 WANDB_ENTITY = "mics-fenet"
 WANDB_PROJECT = "20230324_fenet_sweeps_ben"
 METRIC = 'cross-validation-avg-r2'
-params_to_plot = [f"kernel{i}" for i in range(1, N)] + [f"stride{i}" for i in range(1, N)]
+params_to_plot = [f"kernel{i}" for i in range(1, N)] + [f"stride{i}" for i in range(1, N)] + ['n_feat_layers']
 print(params_to_plot)
 
 def calculate_avg_best_r2(run):
@@ -98,39 +98,41 @@ def make_hyperparameter_impact_plot(df, key, fname=None, xlabel=None, ylabel=Non
     plt.savefig(fname, dpi=300)
 
 if __name__ == '__main__':
-    api = wandb.Api({ 'entity': WANDB_ENTITY, 'project': WANDB_PROJECT })
-    runs = api.runs(filters={ 'state': 'finished' })
-    # api = wandb.Api()
-    # runs = api.runs(path="mics-fenet/20230324_fenet_sweeps_ben", filters={ 'state': 'finished' })
+    plt.rcParams["font.family"] = "Times New Roman"
+
+    # api = wandb.Api({ 'entity': WANDB_ENTITY, 'project': WANDB_PROJECT })
+    # runs = api.runs(filters={ 'state': 'finished' })
 
 
 
 
-    if False:
-        def key_getter(run):
-            cfg = json.loads(run.json_config)
-            if 'cross-validation-avg-r2' not in run.summary:
-                run.summary['cross-validation-avg-r2'] = calculate_avg_best_r2(run)
-                run.summary.update()
-            return { **{ k: cfg[k]['value'] for k in params_to_plot }, METRIC: run.summary[METRIC] }
-
-        df = pd.DataFrame.from_records(map(key_getter, runs))
-        print(df)
-
-        df.to_csv(f"cached_runs_{datetime.now()}.tsv", sep="	")
-    else:
-        df = pd.read_csv('cached_runs_2023-05-09 18:30:10.638142.tsv', sep="	")
+    # if True:
+    #     # from working_api import runs
+    #     def key_getter(run):
+    #         cfg = json.loads(run.json_config)
+    #         if 'cross-validation-avg-r2' not in run.summary:
+    #             run.summary['cross-validation-avg-r2'] = calculate_avg_best_r2(run)
+    #             run.summary.update()
+    #         return { **{ k: cfg[k]['value'] for k in params_to_plot }, METRIC: run.summary[METRIC] }
+    #
+    #     df = pd.DataFrame.from_records(map(key_getter, runs))
+    #     print(df.describe())
+    #
+    #     df.to_csv(f"cached_runs_{datetime.now()}.tsv", sep="	")
+    # else:
+    # df = pd.read_csv('cached_runs_2023-05-09 18:30:10.638142.tsv', sep="	")  # all 1076 finished runs in the project before mics-fenet/20230324_fenet_sweeps_ben/wzh23dwp
+    df = pd.read_csv('cached_runs_2023-05-09 23:18:59.346304.tsv', sep="	")  # runs from 5eh4gf58 and ounwhc0k
 
     df = df.dropna()
     df[METRIC] *= 2 / np.sqrt(2)
 
     # TODO: don't include runs with n_feat_layers < kernel{i}
 
-    key = 'kernel1'
-    make_hyperparameter_impact_plot(df, key)
-    plt.show()
+    # key = 'kernel1'
+    # make_hyperparameter_impact_plot(df, key)
+    # plt.show()
 
-    # for key in tqdm(params_to_plot):
-    #     make_hyperparameter_impact_plot(df, key)
+    for key in tqdm(params_to_plot):
+        make_hyperparameter_impact_plot(df, key)
 
 
