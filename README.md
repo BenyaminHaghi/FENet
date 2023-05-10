@@ -3,7 +3,7 @@
 ## TODO:
 - [x] export environment.yml
 - [ ] just check the batchnorm performance
-- [ ] revert the deletions
+- [x] revert the deletions
 - [ ] wandb docs. or sweep.yml?
 - [ ] automatically return the best model? of 400 sweeps
 - [x] ~~update the File Structure mermaid diagram below~~ remove mermaid diagram

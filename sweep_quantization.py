@@ -30,7 +30,7 @@ from configs import DATA_DIR
 from configs import UNQUANTIZED_MODEL_DIR
 from configs import QUANTIZED_MODEL_DIR
 from configs import FILTERING_MIN_R2 as MIN_R2
-from configs import FILTERING_N_TOP_CHANNELS as N_CHANNELS
+from configs import TRAIN_FILTERING_N_TOP_CHANNELS as N_CHANNELS
 from configs import EXPORT_MODEL_STRIDES as STRIDES
 
 from configs import QUANTIZED_WORD_LENGTH as TOT_LEN

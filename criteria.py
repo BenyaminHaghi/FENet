@@ -56,7 +56,7 @@ def directional_R2_criterion(preds_dl, labels_dl, device, quantization=None):
         'timely/decoder-x-R2': sum(xcomp_r2s) / len(xcomp_r2s),
         'timely/decoder-y-R2': sum(ycomp_r2s) / len(ycomp_r2s),
         'timely/decoder-xy-avg-R2': (sum(xcomp_r2s) + sum(ycomp_r2s)) / len(xcomp_r2s) / 2,
-        'timely/decoder-xy-norm-R2': sqrt(((sum(xcomp_r2s)/len(xcomp_r2s))**2 + (sum(ycomp_r2s)/len(ycomp_r2s))**2) / 2)
+        'timely/decoder-xy-norm-R2': sqrt(((sum(xcomp_r2s)/len(xcomp_r2s))**2 + (sum(ycomp_r2s)/len(ycomp_r2s))**2) / sqrt(2)),
     }
 
 def mean_squared_error_criterion(preds_dl, labels_dl, device):

@@ -41,7 +41,10 @@ def load_hdf5_data(fname, verbose=False):
     neural_cell = matlab_data['neural_cell'][()]
     targets = np.transpose(matlab_data['targets'][:][:]).astype(np.float32)
     targets = target_normalization_centralization(targets)
-    R2 = np.transpose(matlab_data['CVR2'][:][:])
+    if 'CVR2' in matlab_data:
+        R2 = np.transpose(matlab_data['CVR2'][:][:])
+    else:
+        R2 = None
     return matlab_data, neural_cell, targets, R2
 
 def standard_scalar_normalize(ndarray) -> np.ndarray:
@@ -50,7 +53,7 @@ def standard_scalar_normalize(ndarray) -> np.ndarray:
     arr = sc.fit_transform(ndarray)
     return arr
 
-def filter_sort_channels_by_R2(bb, R2s, min_R2=0, n_filtered_channels=40):
+def filter_sort_channels_by_R2(bb, R2s, min_R2=0, n_filtered_channels=None):
     """
     filters data by each channel by two parameters. The first is minimum R2
     and the second is the number of filtered channels. Number of filtered
@@ -59,8 +62,11 @@ def filter_sort_channels_by_R2(bb, R2s, min_R2=0, n_filtered_channels=40):
     an R2 larger than min_R2 will be kept. Othewise, if the top n channels constraint
     is stricter, those channels will be taken.
     """
-    if(n_filtered_channels != None or min_R2 != None):
+
+    if(n_filtered_channels != None or (min_R2 != None and min_R2 > 0)):
         #find the max r2 for each channel betwen x and y
+        assert R2s is not None
+        assert bb.shape[1] == R2s.shape[0], "Must have R2s for each channel!"
         stream_len, n_channels, n_samples = bb.shape
         max_xy_R2 = np.where(R2s[:,0]>R2s[:,1], R2s[:,0], R2s[:,1])
     else:
@@ -85,7 +91,7 @@ def filter_sort_channels_by_R2(bb, R2s, min_R2=0, n_filtered_channels=40):
 
     return bb[ :, channel_mask, :]
 
-def make_augmented_data_from_file(fname):
+def make_augmented_data_from_file(fname, normalize_inputs=True):
     """
     Return lists of broadband data and targets, split by session, augmented by
     selecting (using FENet_Training.Channel_Selection_FixedNum_3D) the top
@@ -99,9 +105,10 @@ def make_augmented_data_from_file(fname):
     for recording_session_idx in range(neural_cell.shape[1]):
         session_data = np.transpose(np.asarray(matlab_data[neural_cell[0][recording_session_idx]]))
         n_segments, n_samples, n_channels = session_data.shape
-        session_data = session_data.reshape(n_segments * n_samples, n_channels)  # collapse first two dims, to prep normalize each channel vector over (n_samples, aka time)
-        session_data = standard_scalar_normalize(session_data)
-        session_data = session_data.reshape(n_segments, n_samples, n_channels)   # after normalization, change the shape back
+        if normalize_inputs:
+            session_data = session_data.reshape(n_segments * n_samples, n_channels)  # collapse first two dims, to prep normalize each channel vector over (n_samples, aka time)
+            session_data = standard_scalar_normalize(session_data)
+            session_data = session_data.reshape(n_segments, n_samples, n_channels)   # after normalization, change the shape back
         session_data = session_data.transpose(0, 2, 1)    # transpose into (n_segments, n_channels, n_samples)
         bb_data.append(session_data)
 
@@ -141,7 +148,7 @@ def pickle_memoize(fname, creation_callback, verbose=False):
             if verbose: print("couldn't pickle the object! :(", err, file=stderr)
         return got
 
-def make_data_from_day(data_dir, day_name, min_R2=0, n_filtered_channels=40, channel_mask=None, pbar=None):
+def make_data_from_day(data_dir, day_name, min_R2=0, n_filtered_channels=None, channel_mask=None, normalize_inputs=True, pbar=None):
     """
     get the broadband data and labels for the given day, using channel_mask and falling back to R2 filtering
     """
@@ -151,14 +158,18 @@ def make_data_from_day(data_dir, day_name, min_R2=0, n_filtered_channels=40, cha
     pickle_fname = data_fname + f".pkl"
 
     bb_list, targets_list, R2_by_channel = pickle_memoize(pickle_fname,
-            creation_callback=lambda: make_augmented_data_from_file(data_fname))
+            creation_callback=lambda: make_augmented_data_from_file(data_fname, normalize_inputs=normalize_inputs))
 
     if pbar is not None: pbar.set_description(f"loading data day {day_name} (filtering channels...)")
     else: print("filtering channels for day", day_name)
 
     # filter out bad channels, either by R2 or mask
     if channel_mask is None:
-        bb_list = [ filter_sort_channels_by_R2(bb, R2_by_channel, min_R2, n_filtered_channels) for bb in bb_list ]
+        if R2_by_channel is not None:
+            bb_list = [ filter_sort_channels_by_R2(bb, R2_by_channel, min_R2, n_filtered_channels) for bb in bb_list ]
+        else:
+            if min_R2 > 0 or n_filtered_channels is not None: 
+                raise ValueError(f"Tried to filter_sort_channels_by_R2 because of min_R2 {min_R2}, n_filtered_channels {n_filtered_channels}, but R2 was not found in the data.")
     else:
         bb_list = [ bb[:, :, channel_mask] for bb in bb_list ]
 
@@ -172,7 +183,7 @@ def make_data_from_day(data_dir, day_name, min_R2=0, n_filtered_channels=40, cha
     if pbar is not None: pbar.update(1)
     return list(zip(torched_bb, torched_targets))
 
-def make_total_training_data(data_dir, min_R2=0, n_filtered_channels=40, days=None, splits=None, channel_mask={}, load_test_dl=True):
+def make_total_training_data(data_dir, min_R2=0, n_filtered_channels=None, days=None, splits=None, channel_mask={}, load_test_dl=True, make_data_from_day_kwargs={}):
     #channel mask expects a dict with the key as the day lablel or index and the value is an array of bools the total
     #lenght of the number of channels with each value indicating if the channel is enabled or not
     #Note, DO NOT have duplicate days in different sets. you shouldn't anyway
@@ -189,7 +200,7 @@ def make_total_training_data(data_dir, min_R2=0, n_filtered_channels=40, days=No
 
     channel_mask_for_day = lambda rolling_day_id, day_label: (channel_mask[day_label] if day_label in channel_mask else ( channel_mask[str(rolling_day_id)] if str(rolling_day_id) in channel_mask else None ))
 
-    make_data_args = [ (data_dir, day_label, min_R2, n_filtered_channels, channel_mask_for_day(i, day_label), None)
+    make_data_args = [ { "data_dir": data_dir, "day_name": day_label, 'min_R2': min_R2, 'n_filtered_channels': n_filtered_channels, 'channel_mask': channel_mask_for_day(i, day_label), **make_data_from_day_kwargs }
         for i, day_label in enumerate(days_to_get) ]
 
     print(days_to_get)
@@ -197,9 +208,9 @@ def make_total_training_data(data_dir, min_R2=0, n_filtered_channels=40, days=No
     #len(days_to_get)
     if(USE_MULTITHREADED_DATA_LOADING):
         with get_context(THREAD_CONTEXT).Pool(min(MAX_POOL_WORKERS, len(make_data_args))) as pool:
-            data_by_day = dict(zip(days_to_get, pool.starmap(make_data_from_day, make_data_args)))
+            data_by_day = dict(zip(days_to_get, pool.map(lambda kwargs: make_data_from_day(**kwargs), make_data_args)))
     else:
-        data_by_day = dict(zip(days_to_get, [ make_data_from_day(*args) for args in make_data_args]))
+        data_by_day = dict(zip(days_to_get, [ make_data_from_day(**kwargs) for kwargs in make_data_args]))
 
     for k, v in data_by_day.items():
         print(k, len(v), v[0][0].shape)
