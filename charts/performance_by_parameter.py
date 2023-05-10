@@ -1,8 +1,11 @@
 import wandb
 from matplotlib import pyplot as plt
+from matplotlib.transforms import Bbox
 import pandas as pd
 import seaborn as sns
 import numpy as np
+from rich import print
+from scipy import stats as st
 
 from operator import itemgetter
 from datetime import datetime
@@ -28,8 +31,6 @@ if __name__ == '__main__':
 
 
 
-
-
     if False:
         def key_getter(run):
             cfg = json.loads(run.json_config)
@@ -49,21 +50,65 @@ if __name__ == '__main__':
 
     key = 'stride1'
 
+    grid = sns.FacetGrid(df, col=key, height=4, aspect=0.2, gridspec_kws={ 'wspace': 0.1 })
+    grid.map_dataframe(sns.histplot, y=METRIC)
+
+    # remove lines
+    for ax in grid.axes.flat:
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.spines["left"].set_visible(False)
+        ax.set_xticks([])
+    grid.axes.flat[0].spines['left'].set_visible(True)
+    for ax in grid.axes.flat[1:]:
+        ax.tick_params(axis='y', left=False)
+    grid.set(xlabel=None, xticklabels=[])
+
+    grid.set_titles(col_template="{col_name}", y=-0.05, x=0.15)
+    grid.figure.supxlabel(f"{key}")
+
+
+
+    grouped = df[[key, METRIC]].groupby(key)
+    x_vals = np.array(list(grouped.groups.keys()))
+
+    # Add a new axis on top of the grid
+    bboxes = [grid.axes.flat[0].get_position(), grid.axes.flat[-1].get_position()]  # assume that the first and last axes are the furthest corners; you could also just get_position every single one
+    containing_bbox = Bbox.union(bboxes)
+    overlay_ax = grid.figure.add_axes(containing_bbox)
     # possible_values = np.sort(df[key].unique())
-    # print(possible_values)
+    overlay_ax.set_xlim(x_vals[0], x_vals[-1] + (x_vals[-1]-x_vals[-2])*0.9)
+    overlay_ax.set_ylim(grid.axes.flat[0].get_ybound())
 
-    grouped = df.groupby(key)
-    max_group_size = grouped.count()[METRIC].max()
-    # print('group count', )
+    # make transparent
+    sns.despine(ax=overlay_ax, left=True, bottom=True)
+    overlay_ax.set_xticks([])
+    overlay_ax.set_yticks([])
+    overlay_ax.patch.set_alpha(0)
 
+    # calculate overlayplot data and plot it
+    agg = grouped.aggregate(['mean', 'count', st.sem])
+    mean_yvals = agg[METRIC, 'mean']
+    confidence_interval_95 = np.array([
+        st.t.interval(
+            confidence=0.95,
+            df=c-1,
+            loc=m,
+            scale=sem
+        )
+        for _, (m, c, sem) in agg.iterrows() ]).T
 
-    fig, axs = plt.subplots(nrows=1, ncols=len(grouped), figsize=(8, 5), sharey=True)
-    for (x, gdf), ax in zip(grouped, axs):
-        sns.histplot(ax=ax, data=gdf, y=METRIC, bins=30)
+    overlay_ax.plot(x_vals, mean_yvals, label='Mean')
+    overlay_ax.fill_between(x_vals, confidence_interval_95[0], confidence_interval_95[1], alpha=0.2, label='95% Confidence')
+    overlay_ax.legend()
+
+    plt.savefig(f'out_{key}.png', dpi=300)
     plt.show()
 
-    # print([x for x in runs[10].summary.keys() if 'avg' in x])
-    # print(runs[0].state)
-    # runs = filter(lambda r: r.is)
-    # df = pd.DataFrame([itemgetter('id')])
+
+    # fig, axs = plt.subplots(nrows=1, ncols=len(grouped), figsize=(8, 5), sharey=True)
+    # for (x, gdf), ax in zip(grouped, axs):
+    #     sns.histplot(ax=ax, data=gdf, y=METRIC, bins=30)
+    # plt.show()
 

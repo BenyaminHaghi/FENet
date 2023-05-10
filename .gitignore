@@ -2,3 +2,4 @@ __pycache__/
 .venv
 wandb/
 *.pkl
+**/.DS_Store
