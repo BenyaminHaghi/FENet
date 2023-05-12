@@ -23,7 +23,7 @@ def key_getter(run):
     # if 'cross-validation-avg-r2' not in run.summary:
     #     run.summary['cross-validation-avg-r2'] = calculate_avg_best_r2(run)
     #     run.summary.update()
-    return { **{ k: cfg[k]['value'] for k in params_to_plot }, METRIC: run.summary[METRIC] if METRIC in run.summary else None }
+    return { **{ k: cfg[k]['value'] for k in params_to_plot }, METRIC: run.summary[METRIC] if METRIC in run.summary else None, 'id': run.id }
 
 df = pd.DataFrame.from_records(map(key_getter, runs))
 print(df.describe())

@@ -29,9 +29,14 @@ def make_hyperparameter_impact_plot(df, key, fname=None, xlabel=None, ylabel=Non
     ylabel = ylabel or "Cross-validated R$^2$"
     overlay_xlegend = "Mean R$^2$"
 
+    # TODO: scuffed
+    if 'kernel' in key or 'stride' in key:
+        layer = int(key.replace('kernel', '').replace('stride', ''))
+        df = df[df['n_feat_layers'] > layer]    # > not >= because # of layers = n_feats (ie. n_feat_layers) -1
+
     grouped = df[[key, METRIC]].groupby(key)
     agg = grouped.aggregate(['mean', 'count', st.sem])
-    print()
+
     #####################################
     # base sns.FacetGrid for histograms #
     #####################################
@@ -97,6 +102,24 @@ def make_hyperparameter_impact_plot(df, key, fname=None, xlabel=None, ylabel=Non
 
     plt.savefig(fname, dpi=300)
 
+
+def make_hyperparameter_impact_boxplot(df, key, fname=None, xlabel=None, ylabel=None):
+    fname = fname or f"boxplot_out_{key}.png"
+    xlabel = xlabel or key
+    ylabel = ylabel or "Cross-validated R$^2$"
+
+    # TODO: scuffed
+    if 'kernel' in key or 'stride' in key:
+        layer = int(key.replace('kernel', '').replace('stride', ''))
+        df = df[df['n_feat_layers'] > layer]    # > not >= because # of layers = n_feats (ie. n_feat_layers) -1
+
+    fig, ax = plt.subplots()
+    sns.boxplot(data=df, x=key, y=METRIC, ax=ax)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+    plt.savefig(fname, dpi=300)
+
 if __name__ == '__main__':
     plt.rcParams["font.family"] = "Times New Roman"
 
@@ -121,18 +144,20 @@ if __name__ == '__main__':
     #     df.to_csv(f"cached_runs_{datetime.now()}.tsv", sep="	")
     # else:
     # df = pd.read_csv('cached_runs_2023-05-09 18:30:10.638142.tsv', sep="	")  # all 1076 finished runs in the project before mics-fenet/20230324_fenet_sweeps_ben/wzh23dwp
-    df = pd.read_csv('cached_runs_2023-05-09 23:18:59.346304.tsv', sep="	")  # runs from 5eh4gf58 and ounwhc0k
+    df = pd.read_csv('cached_runs_2023-05-11 16:24:36.204057.tsv', sep="	")  # runs from 5eh4gf58 and ounwhc0k
 
     df = df.dropna()
     df[METRIC] *= 2 / np.sqrt(2)
 
     # TODO: don't include runs with n_feat_layers < kernel{i}
 
-    # key = 'kernel1'
-    # make_hyperparameter_impact_plot(df, key)
+    # key = 'stride7'
+    # # make_hyperparameter_impact_plot(df, key)
+    # make_hyperparameter_impact_boxplot(df, key)
     # plt.show()
 
     for key in tqdm(params_to_plot):
-        make_hyperparameter_impact_plot(df, key)
+        # make_hyperparameter_impact_plot(df, key)
+        make_hyperparameter_impact_boxplot(df, key)
 
 
