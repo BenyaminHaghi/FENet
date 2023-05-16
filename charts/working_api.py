@@ -6,7 +6,7 @@ from operator import itemgetter
 from datetime import datetime
 import json
 
-from performance_by_parameter import METRIC, N, WANDB_ENTITY, WANDB_PROJECT, params_to_plot
+from performance_by_parameter import METRIC, PERF_METRIC, N, WANDB_ENTITY, WANDB_PROJECT, params_to_plot
 
 print(params_to_plot)
 
@@ -14,7 +14,7 @@ print(params_to_plot)
 api = wandb.Api({ 'entity': WANDB_ENTITY, 'project': WANDB_PROJECT })
 runs = api.runs(filters={ "$and": [
     { "state": 'finished', },
-    { "sweep": { "$in": [ '5eh4gf58', 'ounwhc0k' ] } }
+    { "sweep": { "$in": [ '5eh4gf58', 'ounwhc0k', '6mflazgd' ] } }
                                    ]
  })
 
@@ -23,7 +23,12 @@ def key_getter(run):
     # if 'cross-validation-avg-r2' not in run.summary:
     #     run.summary['cross-validation-avg-r2'] = calculate_avg_best_r2(run)
     #     run.summary.update()
-    return { **{ k: cfg[k]['value'] for k in params_to_plot }, METRIC: run.summary[METRIC] if METRIC in run.summary else None, 'id': run.id }
+    # print(list(run.summary.keys()))
+    return {
+            **{ k: cfg[k]['value'] for k in params_to_plot },
+            METRIC: run.summary[METRIC] if METRIC in run.summary else None,
+            PERF_METRIC: run.summary[PERF_METRIC],
+            'id': run.id }
 
 df = pd.DataFrame.from_records(map(key_getter, runs))
 print(df.describe())

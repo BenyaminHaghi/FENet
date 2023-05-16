@@ -16,6 +16,7 @@ N = 8
 WANDB_ENTITY = "mics-fenet"
 WANDB_PROJECT = "20230324_fenet_sweeps_ben"
 METRIC = 'cross-validation-avg-r2'
+PERF_METRIC = 'efficiency/operations-per-eval'
 params_to_plot = [f"kernel{i}" for i in range(1, N)] + [f"stride{i}" for i in range(1, N)] + ['n_feat_layers']
 print(params_to_plot)
 
@@ -40,6 +41,7 @@ def make_hyperparameter_impact_plot(df, key, fname=None, xlabel=None, ylabel=Non
     #####################################
     # base sns.FacetGrid for histograms #
     #####################################
+    # TO DO apparently sns.relplot is better?
     grid = sns.FacetGrid(df, col=key, height=4, aspect=0.2, gridspec_kws={ 'wspace': 0.1 })
     grid.map_dataframe(sns.histplot, y=METRIC)
     grid.set_ylabels(ylabel)
@@ -114,50 +116,79 @@ def make_hyperparameter_impact_boxplot(df, key, fname=None, xlabel=None, ylabel=
         df = df[df['n_feat_layers'] > layer]    # > not >= because # of layers = n_feats (ie. n_feat_layers) -1
 
     fig, ax = plt.subplots()
-    sns.boxplot(data=df, x=key, y=METRIC, ax=ax)
+    sns.boxplot(data=df, x=key, y=METRIC, ax=ax, color='tab:blue')
+    # sns.stripplot(data=df, x=key, y=METRIC, ax=ax, c='black', alpha=0.3)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
     plt.savefig(fname, dpi=300)
 
+def make_hyperparameter_impact_striplineplot(df, key, plotter=sns.swarmplot, fname=None, xlabel=None, ylabel=None):
+    fname = fname or f"hyperparam_stripline_out_{key}.png"
+    xlabel = xlabel or key
+    ylabel = ylabel or "Cross-validated R$^2$"
+
+    # TODO: scuffed
+    if 'kernel' in key or 'stride' in key:
+        layer = int(key.replace('kernel', '').replace('stride', ''))
+        df = df[df['n_feat_layers'] > layer]    # > not >= because # of layers = n_feats (ie. n_feat_layers) -1
+
+    fig, ax = plt.subplots()
+    plotter(data=df, x=key, y=METRIC, ax=ax, alpha=0.3, native_scale=True)
+    quartiles = df.groupby(key).describe()[METRIC][['25%', '75%']]
+    ax.plot(quartiles.index, quartiles['75%'], color='tab:blue', alpha=0.6, label='75%')
+    sns.lineplot(data=df, x=key, y=METRIC, label='Mean')
+    ax.plot(quartiles.index, quartiles['25%'], color='tab:blue', alpha=0.6, label='25%')
+    # sns.lineplot(data=quartiles, hue=['tab:blue'], alpha=0.6, ax=ax)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.legend()
+
+    plt.savefig(fname, dpi=300)
+
+
+def make_perf_by_cost_plot(df, key=PERF_METRIC, fname=None, xlabel=None, ylabel=None, ogmarker=[85360, 0.757]):
+    fname = fname or f"out_perf_by_cost.png"
+    xlabel = xlabel or key
+    ylabel = ylabel or "Cross-validated R$^2$"
+
+    df = df.sort_values(PERF_METRIC)
+    df['maxperf'] = df[METRIC].cummax()
+    print(df[[PERF_METRIC, 'maxperf']])
+
+    fig, ax = plt.subplots()
+    sns.scatterplot(data=df, x=key, y=METRIC, ax=ax, label='Sweeps', zorder=1)
+    ax.plot(df[key], df['maxperf'], label='Best Performance for Cost', zorder=2)
+    ax.scatter(x=[ogmarker[0]], y=[ogmarker[1]], label='Max Size Model', marker='X', sizes=[70], zorder=3)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.legend()
+
+    plt.savefig(fname, dpi=300)
+
+
 if __name__ == '__main__':
     plt.rcParams["font.family"] = "Times New Roman"
 
-    # api = wandb.Api({ 'entity': WANDB_ENTITY, 'project': WANDB_PROJECT })
-    # runs = api.runs(filters={ 'state': 'finished' })
-
-
-
-
-    # if True:
-    #     # from working_api import runs
-    #     def key_getter(run):
-    #         cfg = json.loads(run.json_config)
-    #         if 'cross-validation-avg-r2' not in run.summary:
-    #             run.summary['cross-validation-avg-r2'] = calculate_avg_best_r2(run)
-    #             run.summary.update()
-    #         return { **{ k: cfg[k]['value'] for k in params_to_plot }, METRIC: run.summary[METRIC] }
-    #
-    #     df = pd.DataFrame.from_records(map(key_getter, runs))
-    #     print(df.describe())
-    #
-    #     df.to_csv(f"cached_runs_{datetime.now()}.tsv", sep="	")
-    # else:
     # df = pd.read_csv('cached_runs_2023-05-09 18:30:10.638142.tsv', sep="	")  # all 1076 finished runs in the project before mics-fenet/20230324_fenet_sweeps_ben/wzh23dwp
-    df = pd.read_csv('cached_runs_2023-05-11 16:24:36.204057.tsv', sep="	")  # runs from 5eh4gf58 and ounwhc0k
+    # df = pd.read_csv('cached_runs_2023-05-11 16:24:36.204057.tsv', sep="	")  # runs from 5eh4gf58 and ounwhc0k
+    df = pd.read_csv('cached_runs_2023-05-15 22:11:11.453862.tsv', sep="	")  # runs from 5eh4gf58, ounwhc0k, and 6mflazgd
 
     df = df.dropna()
     df[METRIC] *= 2 / np.sqrt(2)
 
-    # TODO: don't include runs with n_feat_layers < kernel{i}
-
     # key = 'stride7'
     # # make_hyperparameter_impact_plot(df, key)
-    # make_hyperparameter_impact_boxplot(df, key)
+    # # make_hyperparameter_impact_boxplot(df, key)
+    # make_hyperparameter_impact_striplineplot(df, key, plotter=sns.swarmplot)
     # plt.show()
+    # exit()
+
+    make_perf_by_cost_plot(df, xlabel="Computation Cost (Operations per Eval)")
 
     for key in tqdm(params_to_plot):
         # make_hyperparameter_impact_plot(df, key)
-        make_hyperparameter_impact_boxplot(df, key)
+        # make_hyperparameter_impact_boxplot(df, key)
+        make_hyperparameter_impact_striplineplot(df, key, plotter=sns.stripplot)
 
 
