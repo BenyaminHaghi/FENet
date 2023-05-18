@@ -1,0 +1,122 @@
+# This sweep configuration will sweep over all hyperparemeters. It is also
+# possible to limit the range or fix some hyperparameters for more precise
+# experiments. See the sweep configuration docs for more information on
+# modifying this configuration:
+# https://docs.wandb.ai/guides/sweeps/define-sweep-configuration
+
+program: main_sweeps.py
+method: bayes
+metric:
+  goal: maximize
+  name: cross-validation-avg-r2
+parameters:
+  # preset training hyperparameters
+  optim.adamw_eps:
+    value: 1e-08
+  optim.adamw_wd:
+    value: 1.5e-05
+  optim.lr:
+    value: 0.00125
+  pls_dims:
+    value: 2
+  random_seed:
+    value: 10
+  decoder:
+    value: 0  # 0 = linear decoder
+  # hyperparameters to sweep on
+  n_feat_layers:
+    distribution: q_uniform
+    max: 8
+    min: 3
+    q: 1
+  kernel1:
+    distribution: q_uniform
+    max: 40
+    min: 2
+    q: 2
+  kernel2:
+    distribution: q_uniform
+    max: 40
+    min: 2
+    q: 2
+  kernel3:
+    distribution: q_uniform
+    max: 40
+    min: 2
+    q: 2
+  kernel4:
+    distribution: q_uniform
+    max: 40
+    min: 2
+    q: 2
+  kernel5:
+    distribution: q_uniform
+    max: 40
+    min: 2
+    q: 2
+  kernel6:
+    distribution: q_uniform
+    max: 40
+    min: 2
+    q: 2
+  kernel7:
+    distribution: q_uniform
+    max: 40
+    min: 2
+    q: 2
+  stride1:
+    distribution: q_uniform
+    max: 8
+    min: 2
+    q: 1
+  stride2:
+    distribution: q_uniform
+    max: 8
+    min: 2
+    q: 1
+  stride3:
+    distribution: q_uniform
+    max: 8
+    min: 2
+    q: 1
+  stride4:
+    distribution: q_uniform
+    max: 8
+    min: 2
+    q: 1
+  stride5:
+    distribution: q_uniform
+    max: 8
+    min: 2
+    q: 1
+  stride6:
+    distribution: q_uniform
+    max: 8
+    min: 2
+    q: 1
+  stride7:
+    distribution: q_uniform
+    max: 8
+    min: 2
+    q: 1
+  relu1:
+    value: 0
+  relu2:
+    value: 0
+  relu3:
+    value: 0
+  relu4:
+    value: 0
+  relu5:
+    value: 0
+  relu6:
+    value: 0
+  relu7:
+    value: 0
+  # the remaining parameters are required to initialize optional FENet features, but are not used
+  anneal:
+    value: false
+  annealing_alpha:
+    value: 0.367879
+  thermal_sigma:
+    value: 0.7
