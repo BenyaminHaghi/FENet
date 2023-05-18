@@ -102,7 +102,7 @@ def make_hyperparameter_impact_plot(df, key, fname=None, xlabel=None, ylabel=Non
     overlay_ax.fill_between(x_vals, confidence_interval_95[0], confidence_interval_95[1], alpha=0.2, label='95% Confidence')
     overlay_ax.legend(loc='lower right')
 
-    plt.savefig(fname, dpi=300)
+    plt.savefig('out/' + fname, dpi=300)
 
 
 def make_hyperparameter_impact_boxplot(df, key, fname=None, xlabel=None, ylabel=None):
@@ -118,10 +118,12 @@ def make_hyperparameter_impact_boxplot(df, key, fname=None, xlabel=None, ylabel=
     fig, ax = plt.subplots()
     sns.boxplot(data=df, x=key, y=METRIC, ax=ax, color='tab:blue')
     # sns.stripplot(data=df, x=key, y=METRIC, ax=ax, c='black', alpha=0.3)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
+    ax.set_xlabel(xlabel, fontweight='bold')
+    ax.set_ylabel(ylabel, fontweight='bold')
+    ax.set_yticklabels(['{:.2f}'.format(y) for y in ax.get_yticks()], weight='bold')
+    ax.set_xticklabels(ax.get_xticks(), weight='bold')
 
-    plt.savefig(fname, dpi=300)
+    plt.savefig('out/' + fname, dpi=300)
 
 def make_hyperparameter_impact_striplineplot(df, key, plotter=sns.swarmplot, fname=None, xlabel=None, ylabel=None):
     fname = fname or f"hyperparam_stripline_out_{key}.png"
@@ -134,47 +136,55 @@ def make_hyperparameter_impact_striplineplot(df, key, plotter=sns.swarmplot, fna
         df = df[df['n_feat_layers'] > layer]    # > not >= because # of layers = n_feats (ie. n_feat_layers) -1
 
     fig, ax = plt.subplots()
-    plotter(data=df, x=key, y=METRIC, ax=ax, alpha=0.3, native_scale=True)
+    plotter(data=df, x=key, y=METRIC, hue='actual_layers', ax=ax, alpha=0.5, native_scale=True)
     quartiles = df.groupby(key).describe()[METRIC][['25%', '75%']]
-    ax.plot(quartiles.index, quartiles['75%'], color='tab:blue', alpha=0.6, label='75%')
+    ax.plot(quartiles.index, quartiles['75%'], color='tab:blue', alpha=0.5, label='75%')
     sns.lineplot(data=df, x=key, y=METRIC, label='Mean')
-    ax.plot(quartiles.index, quartiles['25%'], color='tab:blue', alpha=0.6, label='25%')
+    ax.plot(quartiles.index, quartiles['25%'], color='tab:blue', alpha=0.5, label='25%')
     # sns.lineplot(data=quartiles, hue=['tab:blue'], alpha=0.6, ax=ax)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
+    ax.set_xlabel(xlabel, fontweight='bold')
+    ax.set_ylabel(ylabel, fontweight='bold')
+    ax.set_yticklabels(['{:.2f}'.format(y) for y in ax.get_yticks()], weight='bold')
+    ax.set_xticklabels(ax.get_xticks(), weight='bold')
     ax.legend()
 
-    plt.savefig(fname, dpi=300)
+    plt.savefig('out/' + fname, dpi=300)
 
 
 def make_perf_by_cost_plot(df, key=PERF_METRIC, fname=None, xlabel=None, ylabel=None, ogmarker=[85360, 0.757]):
-    fname = fname or f"out_perf_by_cost.png"
+    fname = fname or f"perf_by_cost.png"
     xlabel = xlabel or key
     ylabel = ylabel or "Cross-validated R$^2$"
 
-    df = df.sort_values(PERF_METRIC)
-    df['maxperf'] = df[METRIC].cummax()
-    print(df[[PERF_METRIC, 'maxperf']])
 
     fig, ax = plt.subplots()
-    sns.scatterplot(data=df, x=key, y=METRIC, ax=ax, label='Sweeps', zorder=1)
-    ax.plot(df[key], df['maxperf'], label='Best Performance for Cost', zorder=2)
-    ax.scatter(x=[ogmarker[0]], y=[ogmarker[1]], label='Max Size Model', marker='X', sizes=[70], zorder=3)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.legend()
+    # shuffle to ensure even scatterplot overlap
+    df = df.sample(frac=1)
+    sns.scatterplot(data=df, x=key, y=METRIC, hue='actual_layers', legend='full', ax=ax, zorder=1)
+    df = df.sort_values(PERF_METRIC)
+    df['maxperf'] = df[METRIC].cummax()
+    ax.plot(df[key], df['maxperf'], label='R$^2$ by Cost', zorder=2)
+    ax.scatter(x=[ogmarker[0]], y=[ogmarker[1]], label='db20 Arch.', marker='X', sizes=[70], zorder=3)
+    ax.set_xlabel(xlabel, fontweight='bold')
+    ax.set_ylabel(ylabel, fontweight='bold')
+    ax.set_yticklabels(['{:.2f}'.format(y) for y in ax.get_yticks()], weight='bold')
+    ax.set_xticklabels(ax.get_xticks(), weight='bold')
+    ax.set_ylim(0.6, None)
+    leg = ax.legend(title='# Layers')
+    leg._legend_box.align = "left"  # https://stackoverflow.com/a/44620643/10372825
 
-    plt.savefig(fname, dpi=300)
+    plt.savefig('out/' + fname, dpi=300)
 
 
 if __name__ == '__main__':
-    plt.rcParams["font.family"] = "Times New Roman"
+    # plt.rcParams["font.family"] = "Times New Roman"
 
     # df = pd.read_csv('cached_runs_2023-05-09 18:30:10.638142.tsv', sep="	")  # all 1076 finished runs in the project before mics-fenet/20230324_fenet_sweeps_ben/wzh23dwp
     # df = pd.read_csv('cached_runs_2023-05-11 16:24:36.204057.tsv', sep="	")  # runs from 5eh4gf58 and ounwhc0k
-    df = pd.read_csv('cached_runs_2023-05-15 22:11:11.453862.tsv', sep="	")  # runs from 5eh4gf58, ounwhc0k, and 6mflazgd
+    df = pd.read_csv('cached_runs_2023-05-18 14:06:22.763648.tsv', sep="	")  # runs from 5eh4gf58, ounwhc0k, and 6mflazgd
 
     df = df.dropna()
+    df['actual_layers'] = df['n_feat_layers'] - 1
     df[METRIC] *= 2 / np.sqrt(2)
 
     # key = 'stride7'
@@ -188,7 +198,8 @@ if __name__ == '__main__':
 
     for key in tqdm(params_to_plot):
         # make_hyperparameter_impact_plot(df, key)
-        # make_hyperparameter_impact_boxplot(df, key)
+        make_hyperparameter_impact_boxplot(df, key)
         make_hyperparameter_impact_striplineplot(df, key, plotter=sns.stripplot)
+        plt.close()
 
 
