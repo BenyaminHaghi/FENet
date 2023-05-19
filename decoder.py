@@ -75,7 +75,7 @@ class PLS_Model():
         except ReferenceError:
             print("PLS dimension reduction used before it was trained")
         except TypeError:
-            print("Number of features invalid for n_channels: ", self.n_channels, " and n_in_dims: ", self.n_in_dims)
+            raise TypeError("Number of features invalid for n_channels: ", self.n_channels, " and n_in_dims: ", self.n_in_dims)
 
     def train(self, outputs: torch.Tensor, labels_np: np.ndarray):
         #Model to reduct the total number of dimensions of the outpus using PLS. This function
