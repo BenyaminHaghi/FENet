@@ -151,7 +151,7 @@ def make_hyperparameter_impact_striplineplot(df, key, plotter=sns.swarmplot, fna
     plt.savefig('out/' + fname, dpi=300)
 
 
-def make_perf_by_cost_plot(df, key=PERF_METRIC, fname=None, xlabel=None, ylabel=None, ogmarker=[85360, 0.757]):
+def make_perf_by_cost_plot(df, key=PERF_METRIC, fname=None, xlabel=None, ylabel=None, ogmarker=[85360, 0.535]):
     fname = fname or f"perf_by_cost.png"
     xlabel = xlabel or key
     ylabel = ylabel or "Cross-validated R$^2$"
@@ -169,7 +169,7 @@ def make_perf_by_cost_plot(df, key=PERF_METRIC, fname=None, xlabel=None, ylabel=
     ax.set_ylabel(ylabel, fontweight='bold')
     ax.set_yticklabels(['{:.2f}'.format(y) for y in ax.get_yticks()], weight='bold')
     ax.set_xticklabels(ax.get_xticks(), weight='bold')
-    ax.set_ylim(0.6, None)
+    # ax.set_ylim(0.6, None)
     leg = ax.legend(title='# Layers')
     leg._legend_box.align = "left"  # https://stackoverflow.com/a/44620643/10372825
 
