@@ -181,11 +181,11 @@ if __name__ == '__main__':
 
     # df = pd.read_csv('cached_runs_2023-05-09 18:30:10.638142.tsv', sep="	")  # all 1076 finished runs in the project before mics-fenet/20230324_fenet_sweeps_ben/wzh23dwp
     # df = pd.read_csv('cached_runs_2023-05-11 16:24:36.204057.tsv', sep="	")  # runs from 5eh4gf58 and ounwhc0k
-    df = pd.read_csv('cached_runs_2023-05-18 14:06:22.763648.tsv', sep="	")  # runs from 5eh4gf58, ounwhc0k, and 6mflazgd
+    df = pd.read_csv('cached_runs_2023-05-18 15:45:34.270258.tsv', sep="	")  # runs from 5eh4gf58, ounwhc0k, and 6mflazgd
 
     df = df.dropna()
     df['actual_layers'] = df['n_feat_layers'] - 1
-    df[METRIC] *= 2 / np.sqrt(2)
+    # df[METRIC] *= 2 / np.sqrt(2)
 
     # key = 'stride7'
     # # make_hyperparameter_impact_plot(df, key)
