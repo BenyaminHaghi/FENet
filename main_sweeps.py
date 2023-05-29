@@ -91,9 +91,10 @@ def initialize(run = None, config=None):
                             [config[f'stride{i}'] for i in range(1, N)],
                             [config[f'relu{i}']   for i in range(1, N)],
                             pls=config['pls_dims'],
-                            annealing_alpha=config['annealing_alpha'],
-                            thermal_sigma=config['thermal_sigma'],
-                            anneal=config['anneal']
+                            **{ k: config[k] for k in ['annealing_alpha', 'thermal_sigma', 'anneal'] if k in config }   # pass additional config kwargs if they are in the config
+                            # annealing_alpha=config.get('annealing_alpha'),
+                            # thermal_sigma=config['thermal_sigma'],
+                            # anneal=config['anneal']
                 )
 
     fe_net.load_state_dict(make_daubechies_wavelet_initialization(fe_net))
