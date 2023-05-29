@@ -1,45 +1,36 @@
-path = './FENet_Max'
+import wandb
+from main_sweeps import DATA_DIR, initialize
+from data_parser import make_total_training_data, pickle_memoize
 from FENet_parameterizable import make_fenet_from_checkpoint, read_checkpoint
 from criteria import evaluate_with_criteria
-from criteria import directional_R2_criterion
-from decoder import PLS_Model
-from decoder import Linear_Decoder
 from criteria import mean_squared_error_criterion, directional_R2_criterion
-from data_parser import make_total_training_data
-from main_sweeps import DATA_DIR, initialize
-from configs import LOAD_LOCAL_DATA_CACHE, SAVE_LOCAL_DATA_CACHE, FILTERING_MIN_R2
-from data_parser import pickle_memoize
-import wandb
-import pickle
 
-
-
-def test_data_maker():
-    _, _, withheld_test_dl = make_total_training_data(DATA_DIR, splits = ['test'], n_filtered_channels=None, make_data_from_day_kwargs={ 'normalize_inputs': True })
-    return withheld_test_dl
-if (LOAD_LOCAL_DATA_CACHE):
-    data_pickle_name = f'total_training_data_minR2-{FILTERING_MIN_R2}_nchan-{FILTERING_MIN_R2}_WITHHELD_TEST.pkl'
-    withheld_test_dl = pickle_memoize(data_pickle_name, test_data_maker)
-else:
-    withheld_test_dl = test_data_maker()
-
-def get_model_evals(path, test_dl):
-    config, *_ = read_checkpoint(path)
-    config = { 'annealing_alpha': 0, 'anneal': False, 'thermal_sigma': 0, 'decoder': 0, 'pls_dims': 2, 'random_seed': 0, **config }
-    device, _, pls_model, decoder, _, _, _, _, _  = initialize(run=run, config=config)
-    fenet = make_fenet_from_checkpoint(path, device)    # don't use the fenet from initialize() because that one is not from the checkpoint
-    evals = evaluate_with_criteria(fenet, pls_model, decoder, test_dl, [
-        mean_squared_error_criterion,
-        directional_R2_criterion
-    ], device)
-    return evals, fenet
+# you can choose which checkpoint to evaluate here. these are the files that would be saved to FENET_MODEL_MODEL_SAVE_DIR
+# path = '.\\checkpoints\\db20_architechture'
+path = '.\\checkpoints\\chocolate-sweep-16-fold1-step0'
 
 if __name__ == '__main__':
-    config, *_ = read_checkpoint(path)
-    with wandb.init(project="publishing_evaluation_ben", config=config, tags="oldcode-model") as run:
-        evals, _ = get_model_evals(path, withheld_test_dl)
-        print(evals)
 
-    with wandb.init(project="publishing_evaluation_ben") as run:
-        fenet = make_fenet_from_checkpoint('F:/Ben/wandb_saves')
+    # load data and cache it as a pickle
+    def test_data_maker():
+        _, _, withheld_test_dl = make_total_training_data(DATA_DIR, splits = ['test'], n_filtered_channels=None, make_data_from_day_kwargs={ 'normalize_inputs': False })
+        return withheld_test_dl
+    withheld_test_dl = pickle_memoize('test_data_normedinput.pkl', test_data_maker)
+
+    # load pipeline components
+    config, *_ = read_checkpoint(path)
+    # config = { 'annealing_alpha': 0, 'anneal': False, 'thermal_sigma': 0, 'decoder': 0, 'pls_dims': 2, 'random_seed': 0, **config }
+    config['n_channels'] = withheld_test_dl[0][0].shape[1]
+    device, _, pls_model, decoder, _, _, _, _, _  = initialize(config=config)   # get the pls and decoder models based on how this fenet was configured
+    fenet = make_fenet_from_checkpoint(path, device)    # load custom fenet that we are evaluating
+
+    # evaluate model
+    with wandb.init(project="fenet_publishing_testbed", config=config) as run:
+        evals = evaluate_with_criteria(
+            fenet, pls_model, decoder,      # the pipeline we are evaluating
+            withheld_test_dl,               # eval data
+            [ mean_squared_error_criterion, directional_R2_criterion ],   # the metrics to evaluate with
+            device
+        )
+        print(evals)
 
