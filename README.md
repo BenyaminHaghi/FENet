@@ -14,7 +14,7 @@ Run `wandb login` in the terminal.
 
 ## Running Sample Checkpoints
 
-Launch the example inference script with `python Test_Load_FENet.py`. This script will load a FENet checkpoint, load the other pipeline elements (PLSR and a linear decoder), then load evaluation data and evaluate the performance.
+Launch the example inference script with `python Test_Load_FENet.py`. This script will load a FENet checkpoint, load the other pipeline elements (PLS regression and a linear decoder), then load evaluation data and evaluate the performance.
 
 ## Fine-tuning on Custom Data
 ### Training Configuration

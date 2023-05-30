@@ -7,7 +7,8 @@ from criteria import mean_squared_error_criterion, directional_R2_criterion
 
 # you can choose which checkpoint to evaluate here. these are the files that would be saved to FENET_MODEL_MODEL_SAVE_DIR
 # path = '.\\checkpoints\\db20_architechture'
-path = '.\\checkpoints\\chocolate-sweep-16-fold1-step0'
+path = '.\\checkpoints\\db20-alternative-iqk20aq0'
+path = '.\\efficient-model-volcanic486'
 
 if __name__ == '__main__':
 
