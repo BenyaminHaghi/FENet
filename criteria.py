@@ -7,9 +7,6 @@ from tqdm import tqdm
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 
-# from FENet_Training import Loss_Function as decoder_loss
-# from FENet_Training import Loss_Function_Test as decoder_loss_test
-# from FENet_Training import PLS_Generation
 from FENet_parameterizable import inference_batch, FENet
 from decoder import compute_linear_decoder_loss_preds, r2_score
 from utils import convert_to_buf
@@ -116,7 +113,7 @@ def axes_plot_criterion(preds_dl, labels_dl, device, quantization=None, day_name
         case 'matplot':
             return { 'timely/decoder-preds-chart': np_fig }
 
-def color_scatter_criterion(preds_dl, labels_dl, device, pls=None, quantization=None):
+def color_scatter_criterion(preds_dl, labels_dl, device, quantization=None):
     """
     Create a scatter plot where each point has the HSV color of its label,
     to hopefully show clumps of colored points converging
@@ -232,7 +229,7 @@ def evaluate_with_criteria(net, dim_red, decoder, test_dl, criteria, device, pre
     """
     Runs `net` on `test_dl`, then takes the output and labels and passes it to `criteria` to get an output.
 
-    Compresses network dimension using the FENet.pls parameter. Set FENet.pls=0 to disable.
+    Uses FENet_Parameterizable.inference_batch(), which compresses network dimension using the FENet.pls parameter. Set FENet.pls=0 to disable.
 
     `criteria` will be passed (outputs_dl, labels_dl) if it takes two arguments that end in "_dl",
                and (inputs_dl, outputs_dl, lables_dl) if it takes three.

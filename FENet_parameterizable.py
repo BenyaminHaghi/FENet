@@ -3,7 +3,6 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from tqdm import tqdm
-from decoder import PLS_Model
 from os.path import join as path_join, basename
 from math import floor
 from typing import Optional
@@ -131,7 +130,7 @@ class FENet(nn.Module):
                     anneal_eval_window=8,
                             anneal=False,
                     checkpoint_name=None,
-                                   pls=2,
+                                pls=None,
                              dropout=0.2,
                      cache_intermediate_outputs=False,
                      num_to_cache=None):
@@ -148,7 +147,7 @@ class FENet(nn.Module):
 
         jank_serialize = lambda int_list: '-'.join(str(x) for x in int_list)
         self.checkpoint_name = checkpoint_name or f"training_{jank_serialize(features_by_layer)}_{jank_serialize(kernel_by_layer)}_{jank_serialize(stride_by_layer)}" # used to identify models when logging
-        self.pls = pls  # TODO: PLS should probably be a part of decoder.
+        self.pls = pls  # TODO: Create a FENet Pipeline class that handles different PLS and Decoder things
 
         self.features_by_layer = features_by_layer
         self.kernel_by_layer = kernel_by_layer

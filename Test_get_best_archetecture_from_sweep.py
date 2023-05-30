@@ -4,7 +4,6 @@ from operator import itemgetter
 from glob import glob
 from data_parser import make_total_training_data
 
-from decoder import PLS_Model
 from main_sweeps import initialize
 from FENet_parameterizable import read_checkpoint, make_fenet_from_checkpoint
 from criteria import evaluate_with_criteria, mean_squared_error_criterion, directional_R2_criterion

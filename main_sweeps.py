@@ -77,22 +77,18 @@ def initialize(run = None, config=None):
     if run is None: run = wandb.init(config=config)
     if config is None: config = wandb.config
 
-    # messyness for config
-    if 'pls_dims' not in config: raise ValueError("couldn't find pls_dims in config")
 
 
     seed_everything(config['random_seed'])
 
     device = 'cuda:0' if cuda_is_available() else 'cpu'
 
-
     # train_dl, dev_dl, test_dl = make_total_training_data(DATA_DIR, FILTERING_MIN_R2, FILTERING_N_TOP_CHANNELS)
     N = config['n_feat_layers']
     fe_net = FENet([1]*N,   [config[f'kernel{i}'] for i in range(1, N)],
                             [config[f'stride{i}'] for i in range(1, N)],
                             [config[f'relu{i}']   for i in range(1, N)],
-                            pls=config['pls_dims'],
-                            **{ k: config[k] for k in ['annealing_alpha', 'thermal_sigma', 'anneal'] if k in config }   # pass additional config kwargs if they are in the config
+                            **{ k: config[k] for k in ['pls_dims'] + ['annealing_alpha', 'thermal_sigma', 'anneal'] if k in config }   # pass additional config kwargs if they are in the config
                             # annealing_alpha=config.get('annealing_alpha'),
                             # thermal_sigma=config['thermal_sigma'],
                             # anneal=config['anneal']
@@ -103,8 +99,7 @@ def initialize(run = None, config=None):
     fe_net.to(device)
 
 
-    if(config['pls_dims'] > 0 and config['pls_dims'] != None):
-        pls_mdl = PLS_Model(config['n_channels'], N, config['pls_dims'], train_batch_size, device)
+    if('pls_dims' in config and config['pls_dims'] > 0 and config['pls_dims'] != None):
         # pls_mdl = PLS_Model(config['n_channels'], N, config['pls_dims'], train_batch_size, device)
         pls_mdl = SimplePLS(config['n_channels'], N, config['pls_dims'], train_batch_size)
     else:
@@ -112,19 +107,19 @@ def initialize(run = None, config=None):
 
     if config['decoder'] == 0:
             decoder = Linear_Decoder(train_batch_size=train_batch_size, device=device, quantization=None)
-    elif config['decoder'] == 1:
-            decoder = RNN_decoder(
-                 config['pls_dims']*N,
-                 2,
-                 3,
-                 2,
-                 50,
-                 0.05,
-                 0.001,
-                 0.05,
-                 device,
-                 quantization=None)
-            decoder.to(device)
+    # elif config['decoder'] == 1:
+    #         decoder = RNN_decoder(
+    #              fe_net.pls_dims*N if fe_net.pls_dims is not None else sum(fe_net.features_by_layer),   # @sbulfer shouldn't it be pls_dims, rather than pls_dims * N?
+    #              2,
+    #              3,
+    #              2,
+    #              50,
+    #              0.05,
+    #              0.001,
+    #              0.05,
+    #              device,
+    #              quantization=None)
+    #         decoder.to(device)
 
     loss_fn = MSELoss(reduction='mean')
 

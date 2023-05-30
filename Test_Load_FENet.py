@@ -19,7 +19,6 @@ if __name__ == '__main__':
 
     # load pipeline components
     config, *_ = read_checkpoint(path)
-    # config = { 'annealing_alpha': 0, 'anneal': False, 'thermal_sigma': 0, 'decoder': 0, 'pls_dims': 2, 'random_seed': 0, **config }
     config['n_channels'] = withheld_test_dl[0][0].shape[1]
     device, _, pls_model, decoder, _, _, _, _, _  = initialize(config=config)   # get the pls and decoder models based on how this fenet was configured
     fenet = make_fenet_from_checkpoint(path, device)    # load custom fenet that we are evaluating
