@@ -40,7 +40,8 @@ class SimplePLS():
         self.n_in_dims = n_in_dims
         self.n_out_dims = n_out_dims
 
-    def forward(self, x, labels, n_channels=None, n_in_dims=None, n_out_dims=None):
+    def fit_transform(self, x, labels, n_channels=None, n_in_dims=None, n_out_dims=None):
+        """expects x.shape = (n_chunks, n_channels*n_in_dims) and labels.shape = (n_chunks, n_kinematics=2)"""
         if n_channels is None: n_channels = self.n_channels
         if n_in_dims is None: n_in_dims = self.n_in_dims
         if n_out_dims is None: n_out_dims = self.n_out_dims
@@ -62,7 +63,8 @@ class SimplePLS():
 
             neural = u_temp
             return neural
-        return PLS_Generation(x, labels, n_channels, n_in_dims, n_out_dims)
+        out = PLS_Generation(x, labels, n_channels, n_in_dims, n_out_dims)
+        return out
 
 class PLS_Model():
     def __init__(self, n_channels, n_in_dims, n_out_dims, train_batch_size, device):

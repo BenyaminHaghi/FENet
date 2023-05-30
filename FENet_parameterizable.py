@@ -7,6 +7,7 @@ from os.path import join as path_join, basename
 from math import floor
 from typing import Optional
 import numpy as np
+from data_parser import standard_scalar_normalize
 
 
 # notes
@@ -520,6 +521,7 @@ def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quanti
     net = net.to(device)
     with torch.no_grad():
 
+        # run the model. (batch_size * n_channels, n_samples) -> (batch_size * n_channels, n_features)
         if batch_size == None:
             inputs = inputs.to(device)
             outputs = net(inputs)
@@ -530,17 +532,17 @@ def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quanti
                 outputs.append(net(batch))
             outputs = torch.cat(outputs)
 
-        outputs = outputs.reshape(n_chunks, n_channels, len(net.features_by_layer))    # (batch_size * n_channels, n_samples) -> (batch_size * n_channels, n_features)
+        # outputs = outputs.reshape(n_chunks, n_channels, sum(net.features_by_layer))   # not entirely sure what this was doing
+        outputs = outputs.reshape(n_chunks, n_channels * sum(net.features_by_layer))
+        print(outputs.shape, labels.shape)
 
-        # if isinstance(labels, torch.Tensor):
-        #     labels = labels.cpu().detach().numpy()
+        if (net.pls != None and net.pls > 0):
+            outputs = dim_red.fit_transform(outputs, labels.cpu().detach().numpy())
+            outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
 
-        if(net.pls != None and net.pls > 0):
-            outputs = dim_red.forward(outputs, labels.cpu().detach().numpy())
-        outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
+        outputs = standard_scalar_normalize(outputs)    # additional renormalization for inference time only
         
-        #if(not decoder.trained):
-        #    decoder.train(outputs, labels.cpu().detach().numpy())
+        # decoder expcets (n_chunks, n_channels * feats_per_channel)
         if decoder_crossvalidate:
             return cross_validated_eval(decoder, outputs, torch.from_numpy(labels) if isinstance(labels, np.ndarray) else labels)   # CLEAN: get rid of numpy 
         else:
@@ -630,15 +632,14 @@ def train_batch(device, net: FENet, dim_red, decoder, optimizer, scheduler, crit
             batch = batch.to(device)
             outputs.append(net(batch))
         outputs = torch.cat(outputs)
-    outputs = outputs.reshape(n_chunks, n_channels, len(net.features_by_layer))    # (batch_size * n_channels, n_samples) -> (batch_size * n_channels, n_features)
+    outputs = outputs.reshape(n_chunks, n_channels * sum(net.features_by_layer))
 
     if(net.pls != None and net.pls > 0):
-        if(not dim_red.trained):
-            dim_red.train(outputs, labels_np)
-        outputs = dim_red.forward(outputs)
-    outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)
-    if(not decoder.trained):
-        decoder.train(outputs, labels_np)
+        outputs = dim_red.fit_transform(outputs, labels.cpu().detach().numpy())
+        outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
+
+    # decoder expcets (n_chunks, n_channels * feats_per_channel)
+    decoder.train(outputs, labels_np)
     predictions = decoder.forward(outputs)
     loss = criterion(predictions, labels)   # TODO: expensive
 
@@ -646,11 +647,12 @@ def train_batch(device, net: FENet, dim_red, decoder, optimizer, scheduler, crit
     # loss, *_ = decoder_loss(reduced_feats, labels, pls_mode=None, using_gpu='cuda' in device)
     loss.backward()
     optimizer.step()
-    if(not decoder.trained):
-        try:
-            decoder.step()
-        finally:
-            pass
+
+    # if(not decoder.trained):  # this is for recurrent networks only right? sbulfer?
+    #     try:
+    #         decoder.step()
+    #     finally:
+    #         pass
 
     if scheduler: scheduler.step()
 
