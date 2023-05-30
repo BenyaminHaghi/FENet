@@ -33,6 +33,37 @@ def train_pls(outputs: np.ndarray, labels: np.ndarray, indx, n_feat):
 
     return mean, std_dev, pls_weights
 
+class SimplePLS():
+    """PLS_Model without training state, that gets retrained each time"""
+    def __init__(self, n_channels, n_in_dims, n_out_dims):
+        self.n_channels = n_channels
+        self.n_in_dims = n_in_dims
+        self.n_out_dims = n_out_dims
+
+    def forward(self, x, labels, n_channels=None, n_in_dims=None, n_out_dims=None):
+        if n_channels is None: n_channels = self.n_channels
+        if n_in_dims is None: n_in_dims = self.n_in_dims
+        if n_out_dims is None: n_out_dims = self.n_out_dims
+        def PLS_Generation(X, y,num,wt_feature_num = 8, pls_features_num = 2):
+            X_numpy = X.cpu().detach().numpy() if isinstance(X, np.ndarray) else X
+            y_numpy = y.cpu().detach().numpy() if isinstance(y, np.ndarray) else y
+            my_flag = False
+            for i in range(num):
+                pls = PLSRegression(n_components = pls_features_num)
+                pls.fit(X_numpy[:,i*wt_feature_num:(i+1)*wt_feature_num],y_numpy)
+                pls_weights = pls.x_rotations_
+                pls_weights = torch.Tensor(pls_weights).type(torch.FloatTensor).to(self.device)
+
+                if my_flag == False:
+                    u_temp = torch.matmul(X[:,i*wt_feature_num:(i+1)*wt_feature_num],pls_weights)
+                    my_flag = True
+                else:
+                    u_temp = torch.cat((u_temp, torch.matmul(X[:,i*wt_feature_num:(i+1)*wt_feature_num],pls_weights)) , dim = 1)
+
+            neural = u_temp
+            return neural
+        return PLS_Generation(x, labels, n_channels, n_in_dims, n_out_dims)
+
 class PLS_Model():
     def __init__(self, n_channels, n_in_dims, n_out_dims, train_batch_size, device):
         self.mean = torch.zeros((n_channels, n_in_dims))

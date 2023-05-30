@@ -537,10 +537,7 @@ def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quanti
         #     labels = labels.cpu().detach().numpy()
 
         if(net.pls != None and net.pls > 0):
-            #if(not dim_red.trained):
-            #    dim_red.train(outputs, labels.cpu().detach().numpy())
-            dim_red.train(outputs, labels.cpu().detach().numpy())
-            outputs = dim_red.forward(outputs)
+            outputs = dim_red.forward(outputs, labels.cpu().detach().numpy())
         outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
         
         #if(not decoder.trained):

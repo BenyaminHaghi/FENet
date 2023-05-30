@@ -68,7 +68,8 @@ def initialize(run = None, config=None):
     from functools import partial
 
     from FENet_parameterizable import FENet, make_daubechies_wavelet_initialization, make_fenet_from_checkpoint
-    from decoder import PLS_Model, Linear_Decoder, RNN_decoder
+    from decoder import Linear_Decoder, RNN_decoder
+    from decoder import SimplePLS
     from utils import seed_everything
     from configs import DECODER_TRAIN_BATCH_SIZE as train_batch_size
     from torch.nn import MSELoss
@@ -104,6 +105,8 @@ def initialize(run = None, config=None):
 
     if(config['pls_dims'] > 0 and config['pls_dims'] != None):
         pls_mdl = PLS_Model(config['n_channels'], N, config['pls_dims'], train_batch_size, device)
+        # pls_mdl = PLS_Model(config['n_channels'], N, config['pls_dims'], train_batch_size, device)
+        pls_mdl = SimplePLS(config['n_channels'], N, config['pls_dims'], train_batch_size)
     else:
         pls_mdl = None
 
@@ -234,12 +237,8 @@ if __name__ == '__main__':
                     pbar.set_description(f"tot_step: {elapsed_steps}. batches")
 
                     #print("about to train")
-                    #Clear pls model before each batch
-                    #fe_net.pls_mdl = None
                     n_chunks, n_channels, n_samples = inputs.shape
                     decoder.train_batch_size = n_chunks
-                    pls_mdl.train_batch_size = n_chunks
-                    pls_mdl.trained = False
                     loss, _ = train_batch(  device,
                                             fe_net,
                                             pls_mdl,
@@ -250,16 +249,10 @@ if __name__ == '__main__':
                                             inputs,
                                             labels,
                                             batch_size=FENET_MEMLIMIT_SERIAL_BATCH_SIZE)
-                    #print("choochoo it's trianed!")
 
                     quantization = EVAL_WLFL_PAIRS if EVAL_WITH_QUANTIZATION else None
-                    pls_mdl.trained = False
 
                     if elapsed_steps % EVAL_STEPS == 0:
-
-                        #if(elapsed_steps != 0):
-                            #clear pls training
-                            #pls_mdl.trained = False
 
                         eval_res = evaluate_with_criteria(fe_net, pls_mdl, decoder, dev_dl, [
                             partial(R2_avg_criterion, device=device, quantization=quantization),
@@ -276,16 +269,12 @@ if __name__ == '__main__':
                                             optimizer.state_dict(),
                                             scheduler.state_dict() if scheduler else "no scheduler??"   # clean
                                             ]
-
                         file_label = f"{run.id}-{run.name}-fold{fold}-step{elapsed_steps}"
-
                         saver.save_if_good(
                             eval_res['eval/timely/decoder-xy-norm-R2'],
                             elapsed_steps,
                             states_to_save,
                             label=file_label)
-
-                        # print(list(eval_res.keys()))
 
                         # jankily add additional metrics
                         additional = {
