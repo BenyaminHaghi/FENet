@@ -88,7 +88,7 @@ def initialize(run = None, config=None):
     fe_net = FENet([1]*N,   [config[f'kernel{i}'] for i in range(1, N)],
                             [config[f'stride{i}'] for i in range(1, N)],
                             [config[f'relu{i}']   for i in range(1, N)],
-                            **{ k: config[k] for k in ['pls_dims'] + ['annealing_alpha', 'thermal_sigma', 'anneal'] if k in config }   # pass additional config kwargs if they are in the config
+                            **{ k: config[k] for k in ['pls_dims', 'normalize_at_end'] + ['annealing_alpha', 'thermal_sigma', 'anneal'] if k in config }   # pass additional config kwargs if they are in the config
                             # annealing_alpha=config.get('annealing_alpha'),
                             # thermal_sigma=config['thermal_sigma'],
                             # anneal=config['anneal']

@@ -23,6 +23,8 @@ parameters:
     value: 10
   decoder:
     value: 0  # 0 = linear decoder
+  normalize_at_end:
+    value: True
   # hyperparameters to sweep on
   n_feat_layers:
     distribution: q_uniform
@@ -113,10 +115,3 @@ parameters:
     value: 0
   relu7:
     value: 0
-  # the remaining parameters are required to initialize optional FENet features, but are not used
-  anneal:
-    value: false
-  annealing_alpha:
-    value: 0.367879
-  thermal_sigma:
-    value: 0.7

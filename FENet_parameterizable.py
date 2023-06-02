@@ -126,15 +126,19 @@ class FENet(nn.Module):
                   kernel_by_layer=[40]*7,
                    stride_by_layer=[2]*7,
                    relu_by_layer=[0]*7,
+                    checkpoint_name=None,
+                                pls=None,
+                             dropout=0.2,
+                  normalize_at_end=False,
+
+                     cache_intermediate_outputs=False,
+                     num_to_cache=None,
+
                     annealing_alpha=0.01,
                      thermal_sigma=0.001,
                     anneal_eval_window=8,
                             anneal=False,
-                    checkpoint_name=None,
-                                pls=None,
-                             dropout=0.2,
-                     cache_intermediate_outputs=False,
-                     num_to_cache=None):
+                     ):
         """
         `features_by_layer`: an array of how many features each layer should return. The last element is the number of features of the output of the full convolutional stack.
         """
@@ -171,6 +175,9 @@ class FENet(nn.Module):
         #     for weights_pass, weights_feat in zip(layer.pass_l.parameters(), layer.feat_l.parameters())]
         #     for layer in self.layers]
         self.pool = BitshiftApproxAveragePool()
+        self.bn = nn.BatchNorm1d(sum(self.features_by_layer), affine = False, track_running_stats = False) if normalize_at_end else None
+
+
         self.annealing_alpha = annealing_alpha
         self.thermal_sigma = thermal_sigma
         self.running_annealed_loss = 0
@@ -216,6 +223,7 @@ class FENet(nn.Module):
 
         # concatenate the features from each layer for the final output
         x_total_feat = torch.cat(features_list, dim=1)
+        if self.bn is not None: x_total_feat = self.bn(x_total_feat)
 
         return x_total_feat
 
