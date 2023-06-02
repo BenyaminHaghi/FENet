@@ -23,6 +23,7 @@ from configs import THREAD_CONTEXT
 
 from configs import EFFICIENCY_METRIC_INPUT_LEN, COMPUTE_COST_DIVISOR
 from FENet_parameterizable import train_batch
+from data_parser import pickle_memoize
 
 #print('importing modules...')
 from torch import optim
@@ -137,14 +138,16 @@ def initialize(run = None, config=None):
 if __name__ == '__main__':
     wandb.require("service")    # fix a wandb multiprocessing error as per https://github.com/wandb/wandb/issues/1994#issuecomment-1075436252
 
+    from data_parser import make_total_training_data
     if(LOAD_LOCAL_DATA_CACHE or SAVE_LOCAL_DATA_CACHE):
         data_pickle_name = f'total_training_data_minR2-{FILTERING_MIN_R2}_nchan-{FILTERING_MIN_R2}.pkl'
     if(LOAD_LOCAL_DATA_CACHE):
         print("Loading local cache...\n")
-        with open(data_pickle_name, 'rb') as rf: train_dl, dev_dl = pickle.load(rf)
+        train_dl, dev_dl = pickle_memoize(data_pickle_name,
+                lambda: make_total_training_data(DATA_DIR, FILTERING_MIN_R2, TRAIN_FILTERING_N_TOP_CHANNELS, load_test_dl=False),
+                writefile=SAVE_LOCAL_DATA_CACHE)
     else:
-        from data_parser import make_total_training_data
-        train_dl, dev_dl = make_total_training_data(DATA_DIR, FILTERING_MIN_R2, TRAIN_FILTERING_N_TOP_CHANNELS, load_test_dl=False)
+        train_dl, dev_dl = make_total_training_data()
         if(SAVE_LOCAL_DATA_CACHE):
             #Test data_set is not touched during training
             with open(data_pickle_name, 'wb') as wf: pickle.dump([train_dl, dev_dl], wf); print("pick? led.")

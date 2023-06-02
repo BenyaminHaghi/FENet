@@ -122,8 +122,8 @@ def make_augmented_data_from_file(fname, normalize_inputs=True):
 
     return bb_data, labels_list, R2
 
-@cached(cache={}, key=lambda fname, creation_callback, verbose=False: hashkey(fname))
-def pickle_memoize(fname, creation_callback, verbose=False):
+@cached(cache={}, key=lambda fname, creation_callback, verbose=False, writefile=True: hashkey(fname))
+def pickle_memoize(fname, creation_callback, verbose=False, writefile=True):
     """
     Try to read data from the pickle at `fname`, and save the output of
     `creation_callback` to `fname` as a pickle if `fname` doesn't exist.
@@ -139,13 +139,14 @@ def pickle_memoize(fname, creation_callback, verbose=False):
     # except UnpicklingError:
     #     if verbose: print(f"    pickle file was corrupted! remaking...")
         got = creation_callback()
-        try:
-            with open(fname, 'wb') as wf:
-                dump(got, wf)
-            if verbose: print(f"    successfully made pickle file '{fname}'! :)")
-        except TypeError as err:
-            from sys import stderr
-            if verbose: print("couldn't pickle the object! :(", err, file=stderr)
+        if writefile:
+            try:
+                with open(fname, 'wb') as wf:
+                    dump(got, wf)
+                if verbose: print(f"    successfully made pickle file '{fname}'! :)")
+            except TypeError as err:
+                from sys import stderr
+                if verbose: print("couldn't pickle the object! :(", err, file=stderr)
         return got
 
 def make_data_from_day(data_dir, day_name, min_R2=0, n_filtered_channels=None, channel_mask=None, normalize_inputs=True, pbar=None):
