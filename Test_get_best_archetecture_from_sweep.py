@@ -6,7 +6,7 @@ from data_parser import make_total_training_data
 
 from main_sweeps import initialize
 from FENet_parameterizable import read_checkpoint, make_fenet_from_checkpoint
-from criteria import evaluate_with_criteria, mean_squared_error_criterion, directional_R2_criterion
+from criteria import evaluate_with_criteria, mean_squared_error_criterion, pearson_r_squared_criterion
 
 
 RUN_NAME = "F:/Ben/fenet_sweeps_save/absurd-sweep-4" # used with a glob later
@@ -19,7 +19,7 @@ def get_model_evals(path, test_dl):
     fenet = make_fenet_from_checkpoint(path, device)    # don't use the fenet from initialize() because that one is not from the checkpoint
     evals = evaluate_with_criteria(fenet, pls_model, decoder, test_dl, [
         mean_squared_error_criterion,
-        directional_R2_criterion
+        pearson_r_squared_criterion
     ], device)
     return evals, fenet
 

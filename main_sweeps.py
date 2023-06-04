@@ -199,7 +199,8 @@ if __name__ == '__main__':
             import wandb
 
             from criteria import EfficiencyCriterion
-            from criteria import R2_avg_criterion, R2_hist_criterion, axes_plot_criterion, directional_R2_criterion, mean_squared_error_criterion
+            # from criteria import R2_avg_criterion, R2_hist_criterion, axes_plot_criterion, directional_R2_criterion, mean_squared_error_criterion
+            from criteria import pearson_r_squared_criterion
             from criteria import evaluate_with_criteria
             # from utils import seed_everything, BestEpochSaver, KFoldsGenerator
 
@@ -253,11 +254,12 @@ if __name__ == '__main__':
                     if elapsed_steps % EVAL_STEPS == 0:
 
                         eval_res = evaluate_with_criteria(fe_net, pls_mdl, decoder, dev_dl, [
-                            partial(R2_avg_criterion, device=device, quantization=quantization),
-                            partial(R2_hist_criterion, device=device, quantization=quantization),
-                            partial(directional_R2_criterion, device=device, quantization=quantization),
-                            partial(axes_plot_criterion, device=device, quantization=quantization, day_names=[fold]),
-                            mean_squared_error_criterion,
+                            # partial(R2_avg_criterion, device=device, quantization=quantization),
+                            # partial(R2_hist_criterion, device=device, quantization=quantization),
+                            # partial(directional_R2_criterion, device=device, quantization=quantization),
+                            # partial(axes_plot_criterion, device=device, quantization=quantization, day_names=[fold]),
+                            # mean_squared_error_criterion,
+                            pearson_r_squared_criterion
                         ], device, quantization=quantization)
 
                         #save model dictionary if good

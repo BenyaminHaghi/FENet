@@ -25,6 +25,23 @@ def linear_decoder_loss(outputs, labels, device):
     loss, *_ = compute_linear_decoder_loss_preds(outputs, labels, device, quantization=None)
     return loss
 
+def pearson_r_squared_criterion(preds_dl, labels_dl):
+    from scipy.stats import pearsonr
+    xcomp_dl = [(preds[:, 0], labels[:, 0]) for preds, labels in zip(preds_dl, labels_dl)]
+    ycomp_dl = [(preds[:, 1], labels[:, 1]) for preds, labels in zip(preds_dl, labels_dl)]
+
+    xcomp_r2s = np.array([pearsonr(labels.numpy(), preds.numpy()) for preds, labels in xcomp_dl])
+    ycomp_r2s = np.array([pearsonr(labels.numpy(), preds.numpy()) for preds, labels in ycomp_dl])
+
+    x_avg = xcomp_r2s.mean()
+    y_avg = ycomp_r2s.mean()
+
+    return {
+        'pearsonr2-x': x_avg,
+        'pearsonr2-y': y_avg,
+        'pearsonr2-xy-normed': np.sqrt((x_avg**2 + x_avg**2) / 2)
+    }
+
 def R2_avg_criterion(preds_dl, labels_dl, device, quantization=None):
     tot_r2 = 0
     for preds, labels in zip(preds_dl, labels_dl):
@@ -69,50 +86,51 @@ def mean_squared_error_criterion(preds_dl, labels_dl, device):
     }
 
 
-def axes_plot_criterion(preds_dl, labels_dl, device, quantization=None, day_names=None, compatibility='wandb'):
-    import matplotlib
-    if compatibility == 'wandb': matplotlib.use('agg')   # see tag https://stackoverflow.com/a/7821917/10372825
-    from matplotlib import pyplot as plt
-    labels_dl = list(labels_dl)
-    for i, (preds, labels) in enumerate(zip(preds_dl, labels_dl)):
-        if isinstance(preds, torch.Tensor):
-            preds_dl[i] = preds.cpu().detach().numpy()
-        if isinstance(labels, torch.Tensor):
-            labels_dl[i] = labels.cpu().detach().numpy()
+# def axes_plot_criterion(preds_dl, labels_dl, device, quantization=None, day_names=None, compatibility='wandb'):
+#     import matplotlib
+#     if compatibility == 'wandb': matplotlib.use('agg')   # see tag https://stackoverflow.com/a/7821917/10372825
+#     from matplotlib import pyplot as plt
+#     labels_dl = list(labels_dl)
+#     for i, (preds, labels) in enumerate(zip(preds_dl, labels_dl)):
+#         if isinstance(preds, torch.Tensor):
+#             preds_dl[i] = preds.cpu().detach().numpy()
+#         if isinstance(labels, torch.Tensor):
+#             labels_dl[i] = labels.cpu().detach().numpy()
 
-    xcomp_dl = [(preds[:, 0], labels[:, 0]) for preds, labels in zip(preds_dl, labels_dl)]
-    ycomp_dl = [(preds[:, 1], labels[:, 1]) for preds, labels in zip(preds_dl, labels_dl)]
+#     xcomp_dl = [(preds[:, 0], labels[:, 0]) for preds, labels in zip(preds_dl, labels_dl)]
+#     ycomp_dl = [(preds[:, 1], labels[:, 1]) for preds, labels in zip(preds_dl, labels_dl)]
 
-    xcomp_r2s = [r2_score(labels, preds) for preds, labels in xcomp_dl]
-    ycomp_r2s = [r2_score(labels, preds) for preds, labels in ycomp_dl]
+#     xcomp_r2s = [r2_score(labels, preds) for preds, labels in xcomp_dl]
+#     ycomp_r2s = [r2_score(labels, preds) for preds, labels in ycomp_dl]
 
-    PLOT_START_INDEX = 0
-    PLOT_FIRST_N_POINTS = 500
-    if day_names is None: day_names = list(range(len(preds_dl)))
-    fig, axs = plt.subplots(2, 1, figsize=(14, 7), sharex='all', sharey='all', squeeze=True)
-    for ax, ax_name, preds_labs_in_dim, r2s_in_dim in zip(axs, ['x', 'y'], [xcomp_dl, ycomp_dl], [xcomp_r2s, ycomp_r2s]):
-        preds_dl, labels_dl = zip(*preds_labs_in_dim)
-        for day, r2, preds in zip(day_names, r2s_in_dim, preds_dl):
-            ax.plot(preds[PLOT_START_INDEX:PLOT_START_INDEX+PLOT_FIRST_N_POINTS], label=f"Day {day}, mean R²={r2:.4f}")
-        ax.set_prop_cycle(None)    # reset the color cycle to align colors, https://stackoverflow.com/a/24283087/10372825
-        for day, r2, labels in zip(day_names, r2s_in_dim, labels_dl):
-            ax.plot(labels[PLOT_START_INDEX:PLOT_START_INDEX+PLOT_FIRST_N_POINTS], ":", label=f"Day {day} ground truth")
-        ax.set_ylabel(ax_name + ' (normalized)')
-        ax.set_ylim(-1.5, 1.5)
-        ax.legend()
+#     PLOT_START_INDEX = 0
+#     PLOT_FIRST_N_POINTS = 500
+#     if day_names is None: day_names = list(range(len(preds_dl)))
+#     fig, axs = plt.subplots(2, 1, figsize=(14, 7), sharex='all', sharey='all', squeeze=True)
+#     for ax, ax_name, preds_labs_in_dim, r2s_in_dim in zip(axs, ['x', 'y'], [xcomp_dl, ycomp_dl], [xcomp_r2s, ycomp_r2s]):
+#         preds_dl, labels_dl = zip(*preds_labs_in_dim)
+#         for day, r2, preds in zip(day_names, r2s_in_dim, preds_dl):
+#             ax.plot(preds[PLOT_START_INDEX:PLOT_START_INDEX+PLOT_FIRST_N_POINTS], label=f"Day {day}, mean R²={r2:.4f}")
+#         ax.set_prop_cycle(None)    # reset the color cycle to align colors, https://stackoverflow.com/a/24283087/10372825
+#         for day, r2, labels in zip(day_names, r2s_in_dim, labels_dl):
+#             ax.plot(labels[PLOT_START_INDEX:PLOT_START_INDEX+PLOT_FIRST_N_POINTS], ":", label=f"Day {day} ground truth")
+#         ax.set_ylabel(ax_name + ' (normalized)')
+#         ax.set_ylim(-1.5, 1.5)
+#         ax.legend()
 
-    axs[-1].set_xlabel("Time (steps)")
-    np_fig = convert_to_buf(fig)
-    # clear the figure
-    plt.close('all')
+#     axs[-1].set_xlabel("Time (steps)")
+#     np_fig = convert_to_buf(fig)
+#     # clear the figure
+#     plt.close('all')
 
-    match compatibility:
+#     match compatibility:
 
-        case 'wandb':
-            return { 'timely/decoder-preds-chart': wandb.Image(np_fig) }
-        case 'matplot':
-            return { 'timely/decoder-preds-chart': np_fig }
+#         case 'wandb':
+#             return { 'timely/decoder-preds-chart': wandb.Image(np_fig) }
+#         case 'matplot':
+#             return { 'timely/decoder-preds-chart': np_fig }
 
+@DeprecationWarning
 def color_scatter_criterion(preds_dl, labels_dl, device, quantization=None):
     """
     Create a scatter plot where each point has the HSV color of its label,
@@ -146,6 +164,7 @@ def color_scatter_criterion(preds_dl, labels_dl, device, quantization=None):
     plt.close('all')
     return { 'timely/decoder-color-scatter': wandb.Image(np_fig) }
 
+@DeprecationWarning
 class FENetCriterion(ABC):
     """
     An abstract criterion class that might cache downstream-tuned models
@@ -175,6 +194,7 @@ class FENetCriterion(ABC):
         """
         pass
 
+@DeprecationWarning
 class CriterionConverter(FENetCriterion):
     """
     Wraps a standard pytorch criterion to use the FENetCriterion interface
@@ -203,6 +223,7 @@ class CriterionConverter(FENetCriterion):
         return self.evaluate(outputs_dl, labels_dl)
 
 class EfficiencyCriterion(FENetCriterion):
+    # FIXME: convert to just a pure function of a FENet
     def __init__(self, fe_net: FENet):
         """
         Figure out how many calculations are needed for one inference
