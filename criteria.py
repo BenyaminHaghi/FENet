@@ -11,6 +11,7 @@ from FENet_parameterizable import inference_batch, FENet
 from decoder import compute_linear_decoder_loss_preds, r2_score
 from utils import convert_to_buf
 from abc import ABC, abstractmethod
+from typing import Iterable
 
 from math import sqrt
 
@@ -25,13 +26,13 @@ def linear_decoder_loss(outputs, labels, device):
     loss, *_ = compute_linear_decoder_loss_preds(outputs, labels, device, quantization=None)
     return loss
 
-def pearson_r_squared_criterion(preds_dl, labels_dl):
+def pearson_r_squared_criterion(preds_dl: Iterable[np.ndarray], labels_dl: Iterable[np.ndarray], device):
     from scipy.stats import pearsonr
     xcomp_dl = [(preds[:, 0], labels[:, 0]) for preds, labels in zip(preds_dl, labels_dl)]
     ycomp_dl = [(preds[:, 1], labels[:, 1]) for preds, labels in zip(preds_dl, labels_dl)]
 
-    xcomp_r2s = np.array([pearsonr(labels.numpy(), preds.numpy()) for preds, labels in xcomp_dl])
-    ycomp_r2s = np.array([pearsonr(labels.numpy(), preds.numpy()) for preds, labels in ycomp_dl])
+    xcomp_r2s = np.array([pearsonr(labels, preds) for preds, labels in xcomp_dl])
+    ycomp_r2s = np.array([pearsonr(labels, preds) for preds, labels in ycomp_dl])
 
     x_avg = xcomp_r2s.mean()
     y_avg = ycomp_r2s.mean()
@@ -164,7 +165,6 @@ def color_scatter_criterion(preds_dl, labels_dl, device, quantization=None):
     plt.close('all')
     return { 'timely/decoder-color-scatter': wandb.Image(np_fig) }
 
-@DeprecationWarning
 class FENetCriterion(ABC):
     """
     An abstract criterion class that might cache downstream-tuned models
@@ -269,8 +269,9 @@ def evaluate_with_criteria(net, dim_red, decoder, test_dl, criteria, device, pre
         with torch.no_grad():
             preds_dl = [inference_batch(device, net, dim_red, decoder, inputs, labels, batch_size=FENET_MEMLIMIT_SERIAL_BATCH_SIZE, decoder_crossvalidate=True)\
                 for inputs, labels in tqdm(test_dl, desc="evaluation: running model", leave=False, disable=silent)]
-        if isinstance(preds_dl[0], torch.Tensor):
-            preds_dl = [preds.cpu().detach().numpy() for preds in preds_dl]
+
+        # convert to numpy
+        preds_dl = [preds.cpu().detach().numpy() if isinstance(preds, torch.Tensor) else preds for preds in preds_dl]
 
     eval = {}
     for crit_fn in tqdm(criteria, desc="evaluating on criteria", leave=False, disable=silent):
