@@ -46,14 +46,14 @@ class SimplePLS():
         if n_in_dims is None: n_in_dims = self.n_in_dims
         if n_out_dims is None: n_out_dims = self.n_out_dims
         def PLS_Generation(X, y,num,wt_feature_num = 8, pls_features_num = 2):
-            X_numpy = X.cpu().detach().numpy() if isinstance(X, np.ndarray) else X
-            y_numpy = y.cpu().detach().numpy() if isinstance(y, np.ndarray) else y
+            X_numpy = X.cpu().detach().numpy() if isinstance(X, torch.Tensor) else X
+            y_numpy = y.cpu().detach().numpy() if isinstance(y, torch.Tensor) else y
             my_flag = False
             for i in range(num):
                 pls = PLSRegression(n_components = pls_features_num)
                 pls.fit(X_numpy[:,i*wt_feature_num:(i+1)*wt_feature_num],y_numpy)
                 pls_weights = pls.x_rotations_
-                pls_weights = torch.Tensor(pls_weights).type(torch.FloatTensor).to(self.device)
+                pls_weights = torch.Tensor(pls_weights).type(torch.FloatTensor).to(X.device)
 
                 if my_flag == False:
                     u_temp = torch.matmul(X[:,i*wt_feature_num:(i+1)*wt_feature_num],pls_weights)
@@ -188,12 +188,13 @@ class Linear_Decoder():
         except ReferenceError:
             print("PLS dimension reduction used before it was trained")
 
-    def train(self, outputs: torch.Tensor, labels_np: np.ndarray):
+    def train(self, outputs: torch.Tensor, labels: torch.Tensor):
         """
         Fits Linear Regression to `outputs`, keeping data in tensors when possible.
         expects outputs shape (n_samples, n_feats) and labels shape (n_samples, 2)?
         """
         # regress
+        labels_np = labels.cpu().detach().numpy() if isinstance(labels, torch.Tensor) else labels
         outputs = self.quantize(outputs)
         reg = LinearRegression().fit(outputs[0:self.train_batch_size, :].cpu().detach().numpy(), labels_np[0:self.train_batch_size])
 

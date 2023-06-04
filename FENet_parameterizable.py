@@ -127,7 +127,7 @@ class FENet(nn.Module):
                    stride_by_layer=[2]*7,
                    relu_by_layer=[0]*7,
                     checkpoint_name=None,
-                                pls=None,
+                           pls_dims=None,
                              dropout=0.2,
                   normalize_at_end=False,
 
@@ -152,7 +152,7 @@ class FENet(nn.Module):
 
         jank_serialize = lambda int_list: '-'.join(str(x) for x in int_list)
         self.checkpoint_name = checkpoint_name or f"training_{jank_serialize(features_by_layer)}_{jank_serialize(kernel_by_layer)}_{jank_serialize(stride_by_layer)}" # used to identify models when logging
-        self.pls = pls  # TODO: Create a FENet Pipeline class that handles different PLS and Decoder things
+        self.pls = pls_dims  # TODO: Create a FENet Pipeline class that handles different PLS and Decoder things
 
         self.features_by_layer = features_by_layer
         self.kernel_by_layer = kernel_by_layer
@@ -508,7 +508,7 @@ def cross_validated_eval(decoder, outputs: torch.Tensor, labels: torch.Tensor, f
     for train_dl, dev_dl in k_folds_manager.make_folds():
         # train 
         train_inp, train_lab = zip(*train_dl)
-        decoder.train(torch.vstack(train_inp), torch.vstack(train_lab).cpu().detach().numpy())
+        decoder.train(torch.vstack(train_inp), torch.vstack(train_lab))
 
         # validate
         dev_inp, dev_lab = zip(*dev_dl)
@@ -542,13 +542,12 @@ def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quanti
 
         # outputs = outputs.reshape(n_chunks, n_channels, sum(net.features_by_layer))   # not entirely sure what this was doing
         outputs = outputs.reshape(n_chunks, n_channels * sum(net.features_by_layer))
-        print(outputs.shape, labels.shape)
 
         if (net.pls != None and net.pls > 0):
             outputs = dim_red.fit_transform(outputs, labels.cpu().detach().numpy())
             outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
 
-        outputs = standard_scalar_normalize(outputs)    # additional renormalization for inference time only
+        outputs = torch.from_numpy(standard_scalar_normalize(outputs)).to(device)    # additional renormalization for inference time only
         
         # decoder expcets (n_chunks, n_channels * feats_per_channel)
         if decoder_crossvalidate:
@@ -574,7 +573,6 @@ def train_batch(device, net: FENet, dim_red, decoder, optimizer, scheduler, crit
 
     net =  net.to(device)
     labels = labels.to(device)
-    labels_np = labels.cpu().detach().numpy()
 
     # if(net.anneal):
     #     net.eval()
@@ -647,7 +645,7 @@ def train_batch(device, net: FENet, dim_red, decoder, optimizer, scheduler, crit
         outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
 
     # decoder expcets (n_chunks, n_channels * feats_per_channel)
-    decoder.train(outputs, labels_np)
+    decoder.train(outputs, labels)
     predictions = decoder.forward(outputs)
     loss = criterion(predictions, labels)   # TODO: expensive
 

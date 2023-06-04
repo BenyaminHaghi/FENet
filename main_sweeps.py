@@ -102,7 +102,7 @@ def initialize(run = None, config=None):
 
     if('pls_dims' in config and config['pls_dims'] > 0 and config['pls_dims'] != None):
         # pls_mdl = PLS_Model(config['n_channels'], N, config['pls_dims'], train_batch_size, device)
-        pls_mdl = SimplePLS(config['n_channels'], N, config['pls_dims'], train_batch_size)
+        pls_mdl = SimplePLS(config['n_channels'], N, config['pls_dims'])
     else:
         pls_mdl = None
 
@@ -271,19 +271,19 @@ if __name__ == '__main__':
                                             ]
                         file_label = f"{run.id}-{run.name}-fold{fold}-step{elapsed_steps}"
                         saver.save_if_good(
-                            eval_res['eval/timely/decoder-xy-norm-R2'],
+                            eval_res['eval/pearsonr2-xy-normed'],
                             elapsed_steps,
                             states_to_save,
                             label=file_label)
 
                         # jankily add additional metrics
                         additional = {
-                            'decoder-r2': eval_res['eval/timely/decoder-xy-norm-R2'],
                             # 'compute-cost': compute_cost,
                             # 'unquantized-R², (8, 5)-over-cost': eval_res['eval/decoder-retrain/R²'] / compute_cost,
-                            'unquantized-perf-cost-ratio': eval_res['eval/timely/avg-decoder-R2'] / compute_cost,
-                            'unquantized-perf-cost-combo': eval_res['eval/timely/avg-decoder-R2'] - compute_cost / COMPUTE_COST_DIVISOR,
+                            # 'unquantized-perf-cost-ratio': eval_res['eval/timely/avg-decoder-R2'] / compute_cost,
+                            # 'unquantized-perf-cost-combo': eval_res['eval/timely/avg-decoder-R2'] - compute_cost / COMPUTE_COST_DIVISOR,
                         }
+                        
 
                         # perf to cost ratio with quantized... maybe? or is this implemented wrong?
                         for k, v in eval_res.items():

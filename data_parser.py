@@ -49,6 +49,7 @@ def load_hdf5_data(fname, verbose=False):
 
 def standard_scalar_normalize(ndarray) -> np.ndarray:
     from sklearn.preprocessing import StandardScaler
+    if isinstance(ndarray, torch.Tensor): ndarray = ndarray.cpu().detach().numpy()
     sc = StandardScaler(copy=False)
     arr = sc.fit_transform(ndarray)
     return arr
@@ -227,8 +228,11 @@ def make_total_training_data(data_dir, min_R2=0, n_filtered_channels=None, days=
     # split_data = { split: sum(data_by_day[day_name] for day_name in split_days if days is None or day_name in days)
     #         for split, split_days in day_splits.items() if splits is None or split in splits }
 
-    if (any(k not in ['train', 'dev', 'test'] for k in split_data)):
-        return split_data   # requested special data, lets just return the dict directly
+    # not sure what the purpose of this is? it assumes that config only has info for train, dev, test splits which is wrong
+    # if (any(k not in ['train', 'dev', 'test'] for k in split_data)):
+    #     return split_data   # requested special data, lets just return the dict directly
+    if splits is not None:
+        return (v for k, v in split_data.items() if k in splits)
 
     if(load_test_dl):
         return split_data['train'], split_data['dev'], split_data['test']
