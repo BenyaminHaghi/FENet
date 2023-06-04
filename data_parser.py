@@ -134,7 +134,7 @@ def pickle_memoize(fname, creation_callback, verbose=False, writefile=True):
         with open(fname, 'rb') as rf:
             if verbose: print(f"    found pickle file '{fname}'! :)) loading it...")
             return load(rf)
-    except (FileNotFoundError, UnpicklingError):
+    except (FileNotFoundError, UnpicklingError, EOFError):
         if verbose: print(f"    did not find pickle file '{fname}' or it was corrupted :( making it...")
     # except UnpicklingError:
     #     if verbose: print(f"    pickle file was corrupted! remaking...")
@@ -197,7 +197,7 @@ def make_total_training_data(data_dir, min_R2=0, n_filtered_channels=None, days=
         for day in split_v                          if days   is None or day   in days ]
     #remove duplicates in the days set so data isn't retrieved twice. I am doing it this way
     #instead of fixing it above because I do not know how the above code is working.
-    #days_to_get = [*set(days_to_get)]
+    days_to_get = [*set(days_to_get)]
 
     channel_mask_for_day = lambda rolling_day_id, day_label: (channel_mask[day_label] if day_label in channel_mask else ( channel_mask[str(rolling_day_id)] if str(rolling_day_id) in channel_mask else None ))
 
