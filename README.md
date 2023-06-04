@@ -25,6 +25,9 @@ Set the following environment variables:
 
 Check what else you'd like to configure in `config.py`
 
+### Data Caching 
+If `SAVE_LOCAL_DATA_CACHE` is `True` in `configs.py`, then a pickle file of the preprocessed and normalized training data will be created in the directory where the agent is running. If `LOAD_LOCAL_DATA_CACHE` is enabled, then that data will be used for all new runs, including when the agent command is re-launched, or a new sweep is created. If you need to change the data, either set `LOAD_LOCAL_DATA_CACHE` to `False` or delete the pickle file to trigger reprocessing.
+
 ### Configure Sweep through [Weights & Biases](https://wandb.ai)
 1. Create an W&B account and project.
 2. Run `wandb login` in the terminal where your sweeps will be running.
