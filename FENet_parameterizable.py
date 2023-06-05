@@ -722,7 +722,10 @@ def make_fenet_from_checkpoint(checkpoint, device, override_shape=None, pls_dims
         fe_net_state, optimizer_state, scheduler_state = torch.load(checkpoint)
         model_config = override_shape
     from os.path import basename
-    fe_net = FENet(*model_config, checkpoint_name=basename(checkpoint), pls=pls_dims)
+    fe_net = FENet(*model_config,
+                   checkpoint_name=basename(checkpoint),
+                    **{ k: config[k] for k in ['pls_dims', 'normalize_at_end'] + ['annealing_alpha', 'thermal_sigma', 'anneal'] if k in config }   # pass additional config kwargs if they are in the config
+                   )
     fe_net.load_state_dict(fe_net_state)
     fe_net.to(device)
     return fe_net
