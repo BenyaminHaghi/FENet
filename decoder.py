@@ -40,31 +40,35 @@ class SimplePLS():
         self.n_in_dims = n_in_dims
         self.n_out_dims = n_out_dims
 
-    def fit_transform(self, x, labels, n_channels=None, n_in_dims=None, n_out_dims=None):
-        """expects x.shape = (n_chunks, n_channels*n_in_dims) and labels.shape = (n_chunks, n_kinematics=2)"""
+    def fit_transform(self, x, labels, test_x=None, n_channels=None, n_in_dims=None, n_out_dims=None):
+        """expects x.shape = (n_chunks, n_channels*n_in_dims) and labels.shape = (n_chunks, n_channels*n_pls=2)"""
         if n_channels is None: n_channels = self.n_channels
         if n_in_dims is None: n_in_dims = self.n_in_dims
         if n_out_dims is None: n_out_dims = self.n_out_dims
-        def PLS_Generation(X, y,num,wt_feature_num = 8, pls_features_num = 2):
+        def PLS_Generation(X, y, x_test, num,wt_feature_num = 8, pls_features_num = 2):
             X_numpy = X.cpu().detach().numpy() if isinstance(X, torch.Tensor) else X
             y_numpy = y.cpu().detach().numpy() if isinstance(y, torch.Tensor) else y
             my_flag = False
             for i in range(num):
                 pls = PLSRegression(n_components = pls_features_num)
                 pls.fit(X_numpy[:,i*wt_feature_num:(i+1)*wt_feature_num],y_numpy)
-                pls_weights = pls.x_rotations_
-                pls_weights = torch.Tensor(pls_weights).type(torch.FloatTensor).to(X.device)
+                self.pls_weights = pls.x_rotations_
+                self.pls_weights = torch.Tensor(self.pls_weights).type(torch.FloatTensor).to(X.device)
 
                 if my_flag == False:
-                    u_temp = torch.matmul(X[:,i*wt_feature_num:(i+1)*wt_feature_num],pls_weights)
+                    train_x_temp = torch.matmul(X[:,i*wt_feature_num:(i+1)*wt_feature_num], self.pls_weights)
+                    if test_x is not None: test_x_temp = torch.matmul(test_x[:,i*wt_feature_num:(i+1)*wt_feature_num], self.pls_weights)
                     my_flag = True
                 else:
-                    u_temp = torch.cat((u_temp, torch.matmul(X[:,i*wt_feature_num:(i+1)*wt_feature_num],pls_weights)) , dim = 1)
+                    train_x_temp = torch.cat((train_x_temp, torch.matmul(X[:,i*wt_feature_num:(i+1)*wt_feature_num], self.pls_weights)) , dim = 1)
+                    if test_x is not None: test_x_temp = torch.cat((test_x_temp, torch.matmul(test_x[:,i*wt_feature_num:(i+1)*wt_feature_num], self.pls_weights)) , dim = 1)
 
-            neural = u_temp
-            return neural
-        out = PLS_Generation(x, labels, n_channels, n_in_dims, n_out_dims)
-        return out
+            if test_x is not None:
+                return train_x_temp, test_x_temp
+            return train_x_temp
+        return PLS_Generation(x, labels, test_x, n_channels, n_in_dims, n_out_dims)
+
+
 
 class PLS_Model():
     def __init__(self, n_channels, n_in_dims, n_out_dims, train_batch_size, device):

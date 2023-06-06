@@ -174,8 +174,10 @@ class FENet(nn.Module):
         #                        torch.randn(weights_feat.size(), device=weights_feat.device) * annealing_alpha)
         #     for weights_pass, weights_feat in zip(layer.pass_l.parameters(), layer.feat_l.parameters())]
         #     for layer in self.layers]
-        self.pool = BitshiftApproxAveragePool()
-        self.bn = nn.BatchNorm1d(sum(self.features_by_layer), affine = False, track_running_stats = False) if normalize_at_end else None
+        # self.pool = BitshiftApproxAveragePool()
+        self.pool = nn.AdaptiveAvgPool1d(1)
+        # self.bn = nn.BatchNorm1d(sum(self.features_by_layer), affine = False, track_running_stats = False) if normalize_at_end else None
+        self.normalize_at_end = normalize_at_end  # FIXME: actually take in n_channels and construct the batchnorm
 
 
         self.annealing_alpha = annealing_alpha
@@ -188,9 +190,11 @@ class FENet(nn.Module):
 
     def forward(self, x, use_annealed_weights=False):
         """
-        Expects a tensor of electrode streams, shape = (batch_size * n_channels=192, in_channels, n_samples=900)
-        Returns a tensor of electrode features, shape = (batch_size * n_channels=192, sum(features_by_layer))
+        Expects a tensor of electrode streams, shape = (batch_size, n_channels=192, n_samples=900)
+        Returns a tensor of electrode features, shape = (batch_size, n_channels=192, sum(features_by_layer))
         """
+        n_chunks, n_channels, n_samples = x.shape
+        x = x.view(-1, 1, n_samples)
         features_list = []  # todo-optm: preallocate zeros, then copy feat_x output into the ndarray
         pass_x = x
 
@@ -223,7 +227,10 @@ class FENet(nn.Module):
 
         # concatenate the features from each layer for the final output
         x_total_feat = torch.cat(features_list, dim=1)
-        if self.bn is not None: x_total_feat = self.bn(x_total_feat)
+        x_total_feat = x_total_feat.view(-1, n_channels * sum(self.features_by_layer))
+        if self.normalize_at_end:
+            bn = nn.BatchNorm1d(sum(self.features_by_layer) * n_channels, affine=False, track_running_stats=False)
+            x_total_feat = bn(x_total_feat)
 
         return x_total_feat
 
@@ -482,7 +489,7 @@ def quantize_state_dict(wl, fl, state_dict):
 
 
 
-def cross_validated_eval(decoder, outputs: torch.Tensor, labels: torch.Tensor, folds: int=10):
+def cross_validated_eval(decoder, dim_red, outputs: torch.Tensor, labels: torch.Tensor, folds: int=10):
     """
     expects outputs shape (n_chunks, n_channels*n_feats) and labels shape (n_chunks, 2)
     generates `folds` cross-validation folds from `outputs` and `labels`
@@ -503,18 +510,34 @@ def cross_validated_eval(decoder, outputs: torch.Tensor, labels: torch.Tensor, f
     assert outputs.size()[0] == labels.size()[0]
     k_folds_manager = KFoldsGenerator(zip(outputs, labels), folds)
 
+    from scipy.stats import pearsonr
+    pr2s = []
     tot_dev_decoder_preds = torch.zeros(labels.shape)
     rows_filled_counter = 0
     for train_dl, dev_dl in k_folds_manager.make_folds():
         # train 
-        train_inp, train_lab = zip(*train_dl)
-        decoder.train(torch.vstack(train_inp), torch.vstack(train_lab))
+        train_inp, train_lab = [torch.vstack(dl) for dl in zip(*train_dl)]
+        dev_inp, dev_lab = [torch.vstack(dl) for dl in zip(*dev_dl)]
+
+        if (dim_red != None):
+            train_plsed, test_plsed = dim_red.fit_transform(train_inp, train_lab, dev_inp)
+            # outputs = outputs.view(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
+
+        # decoder.train(torch.vstack(train_inp), torch.vstack(train_lab))
+        from sklearn.linear_model import LinearRegression
+        reg = LinearRegression().fit(train_plsed.cpu().detach().numpy(), train_lab.cpu().detach().numpy())
 
         # validate
-        dev_inp, dev_lab = zip(*dev_dl)
-        dev_inp = torch.vstack(dev_inp)
-        tot_dev_decoder_preds[rows_filled_counter:rows_filled_counter+len(dev_inp), :] = decoder.forward(dev_inp)
-        rows_filled_counter += len(dev_inp)
+        g = reg.predict(test_plsed.cpu().detach().numpy())
+        
+        rx, p = pearsonr(g[:, 0], dev_lab[:, 0])
+        ry, p = pearsonr(g[:, 1], dev_lab[:, 1])
+        pr2s.append([rx**2, ry**2, np.sqrt((rx**4+ry**4)/2)])
+        tot_dev_decoder_preds[rows_filled_counter:rows_filled_counter+len(test_plsed), :] = torch.tensor(g)
+        rows_filled_counter += len(test_plsed)
+    print(pr2s)
+    print(torch.tensor(pr2s).mean(axis=0))
+    import pdb; pdb.set_trace()
     return tot_dev_decoder_preds
 
 
@@ -525,11 +548,11 @@ def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quanti
     
     net.eval()
     n_chunks, n_channels, n_samples = inputs.shape
-    inputs = inputs.reshape(n_chunks * n_channels, 1, n_samples) # train on each sample seprately. the middle dimension is 1 is n_conv_channel=1
+    # inputs = inputs.reshape(n_chunks * n_channels, 1, n_samples) # train on each sample seprately. the middle dimension is 1 is n_conv_channel=1
     net = net.to(device)
     with torch.no_grad():
 
-        # run the model. (batch_size * n_channels, n_samples) -> (batch_size * n_channels, n_features)
+        # run the model. (batch_size * n_channels, n_samples) -> (batch_size, n_channels * n_features)
         if batch_size == None:
             inputs = inputs.to(device)
             outputs = net(inputs)
@@ -540,18 +563,19 @@ def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quanti
                 outputs.append(net(batch))
             outputs = torch.cat(outputs)
 
-        # outputs = outputs.reshape(n_chunks, n_channels, sum(net.features_by_layer))   # not entirely sure what this was doing
-        outputs = outputs.reshape(n_chunks, n_channels * sum(net.features_by_layer))
+        # FIX: MOVE PLSR TO BE CROSSVALIDATED
+        # if (net.pls != None and net.pls > 0):
+        #     outputs = dim_red.fit_transform(outputs, labels.cpu().detach().numpy())
+        #     outputs = outputs.view(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
+        
+        # import pdb; pdb.set_trace()
 
-        if (net.pls != None and net.pls > 0):
-            outputs = dim_red.fit_transform(outputs, labels.cpu().detach().numpy())
-            outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
-
-        outputs = torch.from_numpy(standard_scalar_normalize(outputs)).to(device)    # additional renormalization for inference time only
+        # FIX: REMOVE STANDARD SCALAR BECASUE PLSR SHOULD ROUGHLY NORMALIZE ANYWAYS, AND ITS ANNOYING TO CROSS VALIDATE
+        # outputs = torch.from_numpy(standard_scalar_normalize(outputs)).to(device)    # additional renormalization for inference time only
         
         # decoder expcets (n_chunks, n_channels * feats_per_channel)
         if decoder_crossvalidate:
-            return cross_validated_eval(decoder, outputs, torch.from_numpy(labels) if isinstance(labels, np.ndarray) else labels)   # CLEAN: get rid of numpy 
+            return cross_validated_eval(decoder, dim_red, outputs, torch.from_numpy(labels) if isinstance(labels, np.ndarray) else labels)   # CLEAN: get rid of numpy 
         else:
             decoder.train(outputs, labels)
             return decoder.forward(outputs)
