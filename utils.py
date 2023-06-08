@@ -154,6 +154,7 @@ def import_old_model_code():
     for i, layer in enumerate(fenet.children()):
         print(i, layer)
     print(list(cnn_model.state_dict().keys()))
+    raise NotImplementedError("need to import state dict from cnn_model into fenet object")
 
 if __name__ == '__main__':
     import_old_model_code()

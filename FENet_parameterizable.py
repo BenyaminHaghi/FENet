@@ -229,7 +229,7 @@ class FENet(nn.Module):
         x_total_feat = torch.cat(features_list, dim=1)
         x_total_feat = x_total_feat.view(-1, n_channels * sum(self.features_by_layer))
         if self.normalize_at_end:
-            bn = nn.BatchNorm1d(sum(self.features_by_layer) * n_channels, affine=False, track_running_stats=False)
+            bn = nn.BatchNorm1d(sum(self.features_by_layer) * n_channels, affine=False, track_running_stats=False) # FIXME: slow
             x_total_feat = bn(x_total_feat)
 
         return x_total_feat
@@ -552,24 +552,16 @@ def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quanti
     net = net.to(device)
     with torch.no_grad():
 
-        # run the model. (batch_size * n_channels, n_samples) -> (batch_size, n_channels * n_features)
-        if batch_size == None:
-            inputs = inputs.to(device)
-            outputs = net(inputs)
-        else:
-            outputs = []
-            for batch in torch.split(inputs, batch_size):
-                batch = batch.to(device)
-                outputs.append(net(batch))
-            outputs = torch.cat(outputs)
+        if batch_size is not None: raise NotImplementedError("memory-limit batch size not implemented")
+        # run the model. (batch_size, n_channels, n_samples) -> (batch_size, n_channels * n_features)
+        inputs = inputs.to(device)
+        outputs = net(inputs)
 
         # FIX: MOVE PLSR TO BE CROSSVALIDATED
         # if (net.pls != None and net.pls > 0):
         #     outputs = dim_red.fit_transform(outputs, labels.cpu().detach().numpy())
         #     outputs = outputs.view(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
         
-        # import pdb; pdb.set_trace()
-
         # FIX: REMOVE STANDARD SCALAR BECASUE PLSR SHOULD ROUGHLY NORMALIZE ANYWAYS, AND ITS ANNOYING TO CROSS VALIDATE
         # outputs = torch.from_numpy(standard_scalar_normalize(outputs)).to(device)    # additional renormalization for inference time only
         
@@ -584,14 +576,6 @@ def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quanti
 
 def train_batch(device, net: FENet, dim_red, decoder, optimizer, scheduler, criterion, inputs, labels, batch_size=None):
     n_chunks, n_channels, n_samples = inputs.shape
-
-    # combine n_channels into the batch dimension, to treat each channel as
-    # a seprate training example in the batch, because we want to train a
-    # general FENet which extracts latent features from an arbitrary
-    # electrode, rather than a FENet optimized to this placement of elecdrodes
-    inputs = inputs.reshape(n_chunks * n_channels, 1, n_samples)
-    #print("chunks: ", n_chunks, " samples: ", n_samples, " channels: ", n_channels)
-    #print("\n\ninputs shape", inputs.shape)
 
     optimizer.zero_grad()
 
@@ -652,29 +636,21 @@ def train_batch(device, net: FENet, dim_red, decoder, optimizer, scheduler, crit
 
     net.train()
 
-    if batch_size == None:
-        inputs = inputs.to(device)
-        outputs = net(inputs)
-    else:
-        outputs = []
-        # for batch in torch.split(inputs, batch_size):
-        for batch in tqdm(torch.split(inputs, batch_size), desc="batches", leave=False):
-            batch = batch.to(device)
-            outputs.append(net(batch))
-        outputs = torch.cat(outputs)
-    outputs = outputs.reshape(n_chunks, n_channels * sum(net.features_by_layer))
+    if batch_size is not None: raise NotImplementedError('memory-limit train batch size not implemented')   # the old for-loop stacking was not fixed for when FENet was transformed to take n_chunks, n_channels, n_samples rather than just n_chunks*n_channels, n_samples; blame me to get that old code back
+    inputs = inputs.to(device)
+    outputs = net(inputs)
 
     if(net.pls != None and net.pls > 0):
-        outputs = dim_red.fit_transform(outputs, labels.cpu().detach().numpy())
-        outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
+        outputs = dim_red.fit_transform(outputs, labels)
 
+    # DECODER
     # decoder expcets (n_chunks, n_channels * feats_per_channel)
-    decoder.train(outputs, labels)
-    predictions = decoder.forward(outputs)
+    from sklearn.linear_model import LinearRegression   # FIXME: use the decoder that's passed in; reimplement decoder.LinearDecoder
+    reg = LinearRegression().fit(outputs.cpu().detach().numpy(), labels.cpu().detach().numpy())
+    predictions = reg.predict(outputs.cpu().detach().numpy())
+
     loss = criterion(predictions, labels)   # TODO: expensive
 
-
-    # loss, *_ = decoder_loss(reduced_feats, labels, pls_mode=None, using_gpu='cuda' in device)
     loss.backward()
     optimizer.step()
 
