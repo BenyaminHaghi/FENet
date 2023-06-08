@@ -9,7 +9,6 @@ from math import floor
 from typing import Optional
 import numpy as np
 from data_parser import standard_scalar_normalize
-from criteria import pearson_r_squared_criterion
 
 
 # notes
@@ -491,7 +490,7 @@ def quantize_state_dict(wl, fl, state_dict):
 
 
 
-def cross_validated_eval(decoder, dim_red, outputs: torch.Tensor, labels: torch.Tensor, folds: int=10, crit_fns=[pearson_r_squared_criterion]):
+def cross_validated_eval(decoder, dim_red, outputs: torch.Tensor, labels: torch.Tensor, folds: int=10, crit_fns=[]):
     """
     expects outputs shape (n_chunks, n_channels*n_feats) and labels shape (n_chunks, 2)
     generates `folds` cross-validation folds from `outputs` and `labels`
@@ -512,6 +511,8 @@ def cross_validated_eval(decoder, dim_red, outputs: torch.Tensor, labels: torch.
     assert outputs.size()[0] == labels.size()[0]
     k_folds_manager = KFoldsGenerator(zip(outputs, labels), folds)
 
+    if len(crit_fns) == 0: raise ValueError("You should probably pass some criteria to cross_validated_eval")
+
     # from scipy.stats import pearsonr
     # pr2s = []
     # tot_dev_decoder_preds = torch.zeros(labels.shape)
@@ -531,7 +532,6 @@ def cross_validated_eval(decoder, dim_red, outputs: torch.Tensor, labels: torch.
         reg = LinearRegression().fit(train_plsed.cpu().detach().numpy(), train_lab.cpu().detach().numpy())
 
         # validate
-        # TODO: convert to numpy
         preds = reg.predict(test_plsed.cpu().detach().numpy())
 
         evals = {}

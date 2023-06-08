@@ -27,7 +27,7 @@ def devicify(device, *args):
 #     loss, *_ = compute_linear_decoder_loss_preds(outputs, labels, device, quantization=None)
 #     return loss
 
-def pearson_r_squared_criterion(preds: np.ndarray, labels: np.ndarray, device):
+def pearson_r_squared_criterion(preds: np.ndarray, labels: np.ndarray):
     from scipy.stats import pearsonr
     pr2x = pearsonr(preds[:, 0], labels[:, 0]).statistic **2
     pr2y = pearsonr(preds[:, 1], labels[:, 1]).statistic **2
@@ -72,9 +72,9 @@ def pearson_r_squared_criterion(preds: np.ndarray, labels: np.ndarray, device):
 #         'timely/decoder-xy-norm-R2': sqrt((x_avg_r2**2 + y_avg_r2**2) / 2),
 #     }
 
-def mean_squared_error_criterion(preds, labels, device):
+def mean_squared_error_criterion(preds, labels):
     return {
-        "decoder-MSE": torch.nn.functional.mse_loss(preds, labels).item()
+        "decoder-MSE": torch.nn.functional.mse_loss(torch.tensor(preds, requires_grad=False), torch.tensor(labels, requires_grad=False))
     }
 
 

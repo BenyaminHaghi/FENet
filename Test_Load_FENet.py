@@ -17,7 +17,7 @@ if __name__ == '__main__':
         withheld_test_dl, = list(make_total_training_data(DATA_DIR, splits = ['test'], n_filtered_channels=None, make_data_from_day_kwargs={ 'normalize_inputs': False }))
         print(type(withheld_test_dl))
         return withheld_test_dl
-    withheld_test_dl = pickle_memoize('test_data.pkl', test_data_maker)
+    withheld_test_dl = pickle_memoize('test_data_2019.pkl', test_data_maker)
 
     # load pipeline components
     config, *_ = read_checkpoint(path)
