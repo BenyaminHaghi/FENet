@@ -3,7 +3,7 @@ from main_sweeps import DATA_DIR, initialize
 from data_parser import make_total_training_data, pickle_memoize
 from FENet_parameterizable import make_fenet_from_checkpoint, read_checkpoint
 from criteria import evaluate_with_criteria
-from criteria import mean_squared_error_criterion, pearson_r_squared_criterion, axes_plot_criterion
+from criteria import mean_squared_error_criterion, pearson_r_squared_criterion
 
 # you can choose which checkpoint to evaluate here. these are the files that would be saved to FENET_MODEL_MODEL_SAVE_DIR
 path = '.\\checkpoints\\db20_architechture'
@@ -31,7 +31,7 @@ if __name__ == '__main__':
         evals = evaluate_with_criteria(
             fenet, pls_model, decoder,      # the pipeline we are evaluating
             withheld_test_dl,               # eval data
-            [ mean_squared_error_criterion, pearson_r_squared_criterion, axes_plot_criterion ],   # the metrics to evaluate with
+            [ mean_squared_error_criterion, pearson_r_squared_criterion ],   # the metrics to evaluate with
             device
         )
         wandb.log(evals)

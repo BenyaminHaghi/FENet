@@ -2,12 +2,14 @@ from pyexpat import features
 import torch
 from torch import nn
 import torch.nn.functional as F
+import pandas as pd
 from tqdm import tqdm
 from os.path import join as path_join, basename
 from math import floor
 from typing import Optional
 import numpy as np
 from data_parser import standard_scalar_normalize
+from criteria import pearson_r_squared_criterion
 
 
 # notes
@@ -489,7 +491,7 @@ def quantize_state_dict(wl, fl, state_dict):
 
 
 
-def cross_validated_eval(decoder, dim_red, outputs: torch.Tensor, labels: torch.Tensor, folds: int=10):
+def cross_validated_eval(decoder, dim_red, outputs: torch.Tensor, labels: torch.Tensor, folds: int=10, crit_fns=[pearson_r_squared_criterion]):
     """
     expects outputs shape (n_chunks, n_channels*n_feats) and labels shape (n_chunks, 2)
     generates `folds` cross-validation folds from `outputs` and `labels`
@@ -510,10 +512,11 @@ def cross_validated_eval(decoder, dim_red, outputs: torch.Tensor, labels: torch.
     assert outputs.size()[0] == labels.size()[0]
     k_folds_manager = KFoldsGenerator(zip(outputs, labels), folds)
 
-    from scipy.stats import pearsonr
-    pr2s = []
-    tot_dev_decoder_preds = torch.zeros(labels.shape)
-    rows_filled_counter = 0
+    # from scipy.stats import pearsonr
+    # pr2s = []
+    # tot_dev_decoder_preds = torch.zeros(labels.shape)
+    # rows_filled_counter = 0
+    all_evals = []
     for train_dl, dev_dl in k_folds_manager.make_folds():
         # train 
         train_inp, train_lab = [torch.vstack(dl) for dl in zip(*train_dl)]
@@ -528,23 +531,32 @@ def cross_validated_eval(decoder, dim_red, outputs: torch.Tensor, labels: torch.
         reg = LinearRegression().fit(train_plsed.cpu().detach().numpy(), train_lab.cpu().detach().numpy())
 
         # validate
-        g = reg.predict(test_plsed.cpu().detach().numpy())
+        # TODO: convert to numpy
+        preds = reg.predict(test_plsed.cpu().detach().numpy())
+
+        evals = {}
+        for crit_fn in crit_fns:
+            evals = { **evals, **crit_fn(preds, dev_lab) }
+        all_evals.append(evals)
+    return pd.DataFrame(all_evals).mean().to_dict() # FIXME: probably slow/overkill; cross-eval then dictionary comprehensions seems to be a theme
         
-        rx, p = pearsonr(g[:, 0], dev_lab[:, 0])
-        ry, p = pearsonr(g[:, 1], dev_lab[:, 1])
-        pr2s.append([rx**2, ry**2, np.sqrt((rx**4+ry**4)/2)])
-        tot_dev_decoder_preds[rows_filled_counter:rows_filled_counter+len(test_plsed), :] = torch.tensor(g)
-        rows_filled_counter += len(test_plsed)
-    print(pr2s)
-    print(torch.tensor(pr2s).mean(axis=0))
-    import pdb; pdb.set_trace()
-    return tot_dev_decoder_preds
+    #     rx, p = pearsonr(g[:, 0], dev_lab[:, 0])
+    #     ry, p = pearsonr(g[:, 1], dev_lab[:, 1])
+    #     pr2s.append([rx**2, ry**2, np.sqrt((rx**4+ry**4)/2)])
+    #     tot_dev_decoder_preds[rows_filled_counter:rows_filled_counter+len(test_plsed), :] = torch.tensor(g)
+    #     rows_filled_counter += len(test_plsed)
+    # print(pr2s)
+    # print(torch.tensor(pr2s).mean(axis=0))
+    # import pdb; pdb.set_trace()
+    # return tot_dev_decoder_preds
 
 
-def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quantization=None, batch_size=None, decoder_crossvalidate=False):
+def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quantization=None, batch_size=None, decoder_crossvalidate=False, crit_fns=None):
     """
     expects inputs shape (n_chunks, n_channels, n_samples)
     """
+
+    # FIXME: someday, we should always cross-validate the decoder; it should be built into the pipeline
     
     net.eval()
     n_chunks, n_channels, n_samples = inputs.shape
@@ -567,7 +579,9 @@ def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quanti
         
         # decoder expcets (n_chunks, n_channels * feats_per_channel)
         if decoder_crossvalidate:
-            return cross_validated_eval(decoder, dim_red, outputs, torch.from_numpy(labels) if isinstance(labels, np.ndarray) else labels)   # CLEAN: get rid of numpy 
+            return cross_validated_eval(decoder, dim_red, outputs,
+                                        torch.from_numpy(labels) if isinstance(labels, np.ndarray) else labels, # CLEAN: get rid of numpy 
+                                        ** { 'crit_fns': crit_fns for _ in range(1) if crit_fns is not None })  # FIXME: something better for default crit_fns
         else:
             decoder.train(outputs, labels)
             return decoder.forward(outputs)

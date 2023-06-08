@@ -12,6 +12,7 @@ from decoder import compute_linear_decoder_loss_preds, r2_score
 from utils import convert_to_buf
 from abc import ABC, abstractmethod
 from typing import Iterable
+import pandas as pd
 
 from math import sqrt
 
@@ -21,123 +22,110 @@ from configs import FENET_MEMLIMIT_SERIAL_BATCH_SIZE
 def devicify(device, *args):
     return (x.to(device) for x in args)
 
-def linear_decoder_loss(outputs, labels, device):
-    outputs, labels = devicify(device, outputs, labels)
-    loss, *_ = compute_linear_decoder_loss_preds(outputs, labels, device, quantization=None)
-    return loss
+# def linear_decoder_loss(outputs, labels, device):
+#     outputs, labels = devicify(device, outputs, labels)
+#     loss, *_ = compute_linear_decoder_loss_preds(outputs, labels, device, quantization=None)
+#     return loss
 
-def pearson_r_squared_criterion(preds_dl: Iterable[np.ndarray], labels_dl: Iterable[np.ndarray], device):
+def pearson_r_squared_criterion(preds: np.ndarray, labels: np.ndarray, device):
     from scipy.stats import pearsonr
-    xcomp_dl = [(preds[:, 0], labels[:, 0]) for preds, labels in zip(preds_dl, labels_dl)]
-    ycomp_dl = [(preds[:, 1], labels[:, 1]) for preds, labels in zip(preds_dl, labels_dl)]
-
-    xcomp_r2s = np.array([pearsonr(labels, preds).statistic**2 for preds, labels in xcomp_dl])
-    ycomp_r2s = np.array([pearsonr(labels, preds).statistic**2 for preds, labels in ycomp_dl])
-
-    print('x_comp_r2s', xcomp_r2s)
-    print('y_comp_r2s', ycomp_r2s)
-
-    x_avg = xcomp_r2s.mean()
-    y_avg = ycomp_r2s.mean()
+    pr2x = pearsonr(preds[:, 0], labels[:, 0]).statistic **2
+    pr2y = pearsonr(preds[:, 1], labels[:, 1]).statistic **2
 
     return {
-        'pearsonr2-x': x_avg,
-        'pearsonr2-y': y_avg,
-        'pearsonr2-xy-normed': np.sqrt((x_avg**2 + y_avg**2) / 2)
+        'pearsonr2-x': pr2x,
+        'pearsonr2-y': pr2y,
+        'pearsonr2-xy-normed': np.sqrt((pr2x**2 + pr2y**2) / 2)
     }
 
-def R2_avg_criterion(preds_dl, labels_dl, device, quantization=None):
-    tot_r2 = 0
-    for preds, labels in zip(preds_dl, labels_dl):
-        tot_r2 += r2_score(labels, preds)
-    return { 'timely/avg-decoder-R2': tot_r2 / len(preds_dl) }
+# def R2_avg_criterion(preds_dl, labels_dl, device, quantization=None):
+#     tot_r2 = 0
+#     for preds, labels in zip(preds_dl, labels_dl):
+#         tot_r2 += r2_score(labels, preds)
+#     return { 'timely/avg-decoder-R2': tot_r2 / len(preds_dl) }
 
-def R2_hist_criterion(preds_dl, labels_dl, device, quantization=None):
-    r2s = []
-    for preds, labels in zip(preds_dl, labels_dl):
-        r2 = r2_score(labels, preds)
-        r2s.append(r2)
-    wandb.log({ 'histogramhistogramhistogram': wandb.Histogram(np.array(r2s).flatten()) }, commit=False)
-    return { 'timely/decoder-R2': wandb.Histogram(np.array(r2s).flatten()) }
+# def R2_hist_criterion(preds_dl, labels_dl, device, quantization=None):
+#     r2s = []
+#     for preds, labels in zip(preds_dl, labels_dl):
+#         r2 = r2_score(labels, preds)
+#         r2s.append(r2)
+#     wandb.log({ 'histogramhistogramhistogram': wandb.Histogram(np.array(r2s).flatten()) }, commit=False)
+#     return { 'timely/decoder-R2': wandb.Histogram(np.array(r2s).flatten()) }
 
-def directional_R2_criterion(preds_dl, labels_dl, device, quantization=None):
+# def directional_R2_criterion(preds_dl, labels_dl, device, quantization=None):
+#
+#     #labels_dl = [labels.cpu().detach().numpy() for labels in labels_dl]
+#
+#     xcomp_dl = [(preds[:, 0], labels[:, 0]) for preds, labels in zip(preds_dl, labels_dl)]
+#     ycomp_dl = [(preds[:, 1], labels[:, 1]) for preds, labels in zip(preds_dl, labels_dl)]
+#
+#     xcomp_r2s = [r2_score(labels, preds) for preds, labels in xcomp_dl]
+#     ycomp_r2s = [r2_score(labels, preds) for preds, labels in ycomp_dl]
+#
+#     x_avg_r2 = sum(xcomp_r2s) / len(xcomp_r2s)
+#     y_avg_r2 = sum(ycomp_r2s) / len(ycomp_r2s)
+#
+#     return {
+#         'timely/decoder-x-R2': x_avg_r2,
+#         'timely/decoder-y-R2': y_avg_r2,
+#         'timely/decoder-xy-avg-R2': (sum(xcomp_r2s) + sum(ycomp_r2s)) / len(xcomp_r2s) / 2,
+#         'timely/decoder-xy-norm-R2': sqrt((x_avg_r2**2 + y_avg_r2**2) / 2),
+#     }
 
-    #labels_dl = [labels.cpu().detach().numpy() for labels in labels_dl]
-
-    xcomp_dl = [(preds[:, 0], labels[:, 0]) for preds, labels in zip(preds_dl, labels_dl)]
-    ycomp_dl = [(preds[:, 1], labels[:, 1]) for preds, labels in zip(preds_dl, labels_dl)]
-
-    xcomp_r2s = [r2_score(labels, preds) for preds, labels in xcomp_dl]
-    ycomp_r2s = [r2_score(labels, preds) for preds, labels in ycomp_dl]
-
-    x_avg_r2 = sum(xcomp_r2s) / len(xcomp_r2s)
-    y_avg_r2 = sum(ycomp_r2s) / len(ycomp_r2s)
-
+def mean_squared_error_criterion(preds, labels, device):
     return {
-        'timely/decoder-x-R2': x_avg_r2,
-        'timely/decoder-y-R2': y_avg_r2,
-        'timely/decoder-xy-avg-R2': (sum(xcomp_r2s) + sum(ycomp_r2s)) / len(xcomp_r2s) / 2,
-        'timely/decoder-xy-norm-R2': sqrt((x_avg_r2**2 + y_avg_r2**2) / 2),
-    }
-
-def mean_squared_error_criterion(preds_dl, labels_dl, device):
-    MSEs = [torch.nn.functional.mse_loss(
-        torch.from_numpy(preds) if isinstance(preds, np.ndarray) else preds,
-        torch.from_numpy(labels) if isinstance(labels, np.ndarray) else labels).item()
-        for preds, labels in zip(preds_dl, labels_dl)]
-    return {
-        "decoder-MSE": sum(MSEs)/len(MSEs)
+        "decoder-MSE": torch.nn.functional.mse_loss(preds, labels).item()
     }
 
 
-def axes_plot_criterion(preds_dl, labels_dl, device, quantization=None, day_names=None, compatibility='wandb'):
-    import matplotlib
-    if compatibility == 'wandb': matplotlib.use('agg')   # see tag https://stackoverflow.com/a/7821917/10372825
-    from matplotlib import pyplot as plt
-    from scipy.stats import pearsonr
-    labels_dl = list(labels_dl)
-    # for i, (preds, labels) in enumerate(zip(preds_dl, labels_dl)):
-    #     if isinstance(preds, torch.Tensor):
-    #         preds_dl[i] = preds.cpu().detach().numpy()
-    #     if isinstance(labels, torch.Tensor):
-    #         labels_dl[i] = labels.cpu().detach().numpy()
+# def axes_plot_criterion(preds_dl, labels_dl, device, quantization=None, day_names=None, compatibility='wandb'):
+#     import matplotlib
+#     if compatibility == 'wandb': matplotlib.use('agg')   # see tag https://stackoverflow.com/a/7821917/10372825
+#     from matplotlib import pyplot as plt
+#     from scipy.stats import pearsonr
+#     labels_dl = list(labels_dl)
+#     # for i, (preds, labels) in enumerate(zip(preds_dl, labels_dl)):
+#     #     if isinstance(preds, torch.Tensor):
+#     #         preds_dl[i] = preds.cpu().detach().numpy()
+#     #     if isinstance(labels, torch.Tensor):
+#     #         labels_dl[i] = labels.cpu().detach().numpy()
 
-    # only show up to two lines
-    preds_dl = preds_dl[:2]
-    labels_dl = labels_dl[:2]
+#     # only show up to two lines
+#     preds_dl = preds_dl[:2]
+#     labels_dl = labels_dl[:2]
 
-    xcomp_dl = [(preds[:, 0], labels[:, 0]) for preds, labels in zip(preds_dl, labels_dl)]
-    ycomp_dl = [(preds[:, 1], labels[:, 1]) for preds, labels in zip(preds_dl, labels_dl)]
+#     xcomp_dl = [(preds[:, 0], labels[:, 0]) for preds, labels in zip(preds_dl, labels_dl)]
+#     ycomp_dl = [(preds[:, 1], labels[:, 1]) for preds, labels in zip(preds_dl, labels_dl)]
 
-    xcomp_r2s = [pearsonr(labels, preds).statistic**2 for preds, labels in xcomp_dl]
-    ycomp_r2s = [pearsonr(labels, preds).statistic**2 for preds, labels in ycomp_dl]
+#     xcomp_r2s = [pearsonr(labels, preds).statistic**2 for preds, labels in xcomp_dl]
+#     ycomp_r2s = [pearsonr(labels, preds).statistic**2 for preds, labels in ycomp_dl]
 
-    PLOT_START_INDEX = 0
-    PLOT_FIRST_N_POINTS = 500
-    if day_names is None: day_names = list(range(len(preds_dl)))
-    fig, axs = plt.subplots(2, 1, figsize=(14, 7), sharex='all', sharey='all', squeeze=True)
-    for ax, ax_name, preds_labs_in_dim, r2s_in_dim in zip(axs, ['x', 'y'], [xcomp_dl, ycomp_dl], [xcomp_r2s, ycomp_r2s]):
-        preds_dl, labels_dl = zip(*preds_labs_in_dim)
-        for day, r2, preds in zip(day_names, r2s_in_dim, preds_dl):
-            ax.plot(preds[PLOT_START_INDEX:PLOT_START_INDEX+PLOT_FIRST_N_POINTS], label=f"Day {day}, pearson r={r2:.4f}")
-        ax.set_prop_cycle(None)    # reset the color cycle to align colors, https://stackoverflow.com/a/24283087/10372825
-        for day, r2, labels in zip(day_names, r2s_in_dim, labels_dl):
-            ax.plot(labels[PLOT_START_INDEX:PLOT_START_INDEX+PLOT_FIRST_N_POINTS], ":", label=f"Day {day} ground truth")
-        ax.set_ylabel(ax_name + ' (normalized)')
-        ax.set_ylim(-1.5, 1.5)
-        ax.legend()
+#     PLOT_START_INDEX = 0
+#     PLOT_FIRST_N_POINTS = 500
+#     if day_names is None: day_names = list(range(len(preds_dl)))
+#     fig, axs = plt.subplots(2, 1, figsize=(14, 7), sharex='all', sharey='all', squeeze=True)
+#     for ax, ax_name, preds_labs_in_dim, r2s_in_dim in zip(axs, ['x', 'y'], [xcomp_dl, ycomp_dl], [xcomp_r2s, ycomp_r2s]):
+#         preds_dl, labels_dl = zip(*preds_labs_in_dim)
+#         for day, r2, preds in zip(day_names, r2s_in_dim, preds_dl):
+#             ax.plot(preds[PLOT_START_INDEX:PLOT_START_INDEX+PLOT_FIRST_N_POINTS], label=f"Day {day}, pearson r={r2:.4f}")
+#         ax.set_prop_cycle(None)    # reset the color cycle to align colors, https://stackoverflow.com/a/24283087/10372825
+#         for day, r2, labels in zip(day_names, r2s_in_dim, labels_dl):
+#             ax.plot(labels[PLOT_START_INDEX:PLOT_START_INDEX+PLOT_FIRST_N_POINTS], ":", label=f"Day {day} ground truth")
+#         ax.set_ylabel(ax_name + ' (normalized)')
+#         ax.set_ylim(-1.5, 1.5)
+#         ax.legend()
 
-    axs[-1].set_xlabel("Time (steps)")
-    np_fig = convert_to_buf(fig)
-    # clear the figure
-    plt.close('all')
+#     axs[-1].set_xlabel("Time (steps)")
+#     np_fig = convert_to_buf(fig)
+#     # clear the figure
+#     plt.close('all')
 
-    match compatibility:
+#     match compatibility:
 
-        case 'wandb':
-            return { 'timely/decoder-preds-chart': wandb.Image(np_fig) }
-        case 'matplot':
-            return { 'timely/decoder-preds-chart': np_fig }
+#         case 'wandb':
+#             return { 'timely/decoder-preds-chart': wandb.Image(np_fig) }
+#         case 'matplot':
+#             return { 'timely/decoder-preds-chart': np_fig }
 
 @DeprecationWarning
 def color_scatter_criterion(preds_dl, labels_dl, device, quantization=None):
@@ -265,36 +253,28 @@ def evaluate_with_criteria(net, dim_red, decoder, test_dl, criteria, device, pre
             todo-refactor: this is super jank, but useful for some metrics that need the inputs_dl and others that don't. could just make taking all three the default.
     `criteria` should return a dictionary of the form { 'metric-name': 'wandb_loggable' }
     """
-    from inspect import signature
-    inputs_dl, labels_dl = list(zip(*test_dl))
-    if preds_dl == None:
+    if preds_dl is not None: raise NotImplementedError("you must not provide your own preds_dl, as evaluate_with_criteria will call inference_batch and grab metrics directly")
 
-        if select_n and select_n < len(test_dl): test_dl = test_dl[:select_n]
+    if select_n and select_n < len(test_dl): test_dl = test_dl[:select_n]   # FIXME: should use itertools slice in case test_dl is not indexable
 
-        # fix: test_dl should be coerced to multitime-iterable, eg. if passed a zip w/o this then it will consume it then be sad the second time around
-        if type(test_dl) != list and type(test_dl) != DataLoader: test_dl = list(test_dl)
+    with torch.no_grad():
+        preds_dl = [
+            inference_batch(
+                device,
+                net,
+                dim_red,
+                decoder,
+                inputs,
+                labels,
+                batch_size=FENET_MEMLIMIT_SERIAL_BATCH_SIZE,
+                decoder_crossvalidate=True,
+                crit_fns = criteria
+            )
+            for inputs, labels in tqdm(test_dl, desc="evaluation: running model", leave=False, disable=silent)
+        ]
+    
+    return pd.DataFrame(preds_dl).mean().to_dict()
 
-        with torch.no_grad():
-            preds_dl = [inference_batch(device, net, dim_red, decoder, inputs, labels, batch_size=FENET_MEMLIMIT_SERIAL_BATCH_SIZE, decoder_crossvalidate=True)\
-                for inputs, labels in tqdm(test_dl, desc="evaluation: running model", leave=False, disable=silent)]
 
-        # convert to numpy
-        preds_dl = [preds.cpu().detach().numpy() if isinstance(preds, torch.Tensor) else preds for preds in preds_dl]
 
-    eval = {}
-    for crit_fn in tqdm(criteria, desc="evaluating on criteria", leave=False, disable=silent):
-        # inspect the signature of this criteria_function to see if it should take inputs_dl or just outpus_dl and labels_dl
-        sig = signature(crit_fn)
-        num_dl_args = len([x for x in sig.parameters if x.endswith('_dl')])
-        if num_dl_args == 3:
-            print("\n\n\nbeginning quantization eval!!")
-            got = crit_fn(inputs_dl, preds_dl, labels_dl)
-        elif num_dl_args == 2:
-            got = crit_fn(preds_dl, labels_dl, device=device)
-        else: raise NotImplementedError(f"expected each `criteria` fn to take 2 or 3 _dl arguments; instead, it appears to take {num_dl_args}. ({sig.parameters})")
-        # now that we got the eval outputs, add them to the dictionary
-        eval = { **eval, **got }
 
-    eval = { 'eval/'+k: v for k, v in eval.items() }
-
-    return eval
