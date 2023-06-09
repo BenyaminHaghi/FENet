@@ -177,8 +177,8 @@ def make_data_from_day(data_dir, day_name, min_R2=0, n_filtered_channels=None, c
 
     if pbar is not None: pbar.set_description(f"loading data day {day_name} (torchifying...)")
     else: print("torchifying channels for day", day_name)
-    torched_bb = [torch.from_numpy(x).to(torch.float32) for x in bb_list]
-    torched_targets = [torch.from_numpy(x).to(torch.float32) for x in targets_list]
+    torched_bb = [torch.from_numpy(x).to(torch.float32).contiguous() for x in bb_list]
+    torched_targets = [torch.from_numpy(x).to(torch.float32).contiguous() for x in targets_list]
     del bb_list
     del targets_list
 

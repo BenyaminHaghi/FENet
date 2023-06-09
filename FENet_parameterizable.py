@@ -195,7 +195,7 @@ class FENet(nn.Module):
         Returns a tensor of electrode features, shape = (batch_size, n_channels=192, sum(features_by_layer))
         """
         n_chunks, n_channels, n_samples = x.shape
-        x = x.view(-1, 1, n_samples)
+        x = x.reshape(n_chunks * n_channels, 1, n_samples)  # FIXME: why do we get an error when using view? where's the non-contiguous data coming from?
         features_list = []  # todo-optm: preallocate zeros, then copy feat_x output into the ndarray
         pass_x = x
 
@@ -661,7 +661,23 @@ def train_batch(device, net: FENet, dim_red, decoder, optimizer, scheduler, crit
     # decoder expcets (n_chunks, n_channels * feats_per_channel)
     from sklearn.linear_model import LinearRegression   # FIXME: use the decoder that's passed in; reimplement decoder.LinearDecoder
     reg = LinearRegression().fit(outputs.cpu().detach().numpy(), labels.cpu().detach().numpy())
-    predictions = reg.predict(outputs.cpu().detach().numpy())
+
+
+    # BEGIN LINEAR DECODER INFERENCE; FIXME: implement as a decoder class for the pipeline
+    w_x = reg.coef_[0,:].reshape((reg.coef_.shape[1],1))
+    w_y = reg.coef_[1,:].reshape((reg.coef_.shape[1],1))
+    b0_x = reg.intercept_[0]
+    b0_y = reg.intercept_[1]
+
+    w_x = torch.tensor(w_x, device=device)
+    w_y = torch.tensor(w_y, device=device)
+    b0_x = torch.tensor(b0_x, device=device)
+    b0_y = torch.tensor(b0_y, device=device)
+
+    pred_x = torch.matmul(outputs, w_x) + b0_x
+    pred_y = torch.matmul(outputs, w_y) + b0_y
+    predictions = torch.cat((pred_x, pred_y), axis = 1)
+    # END LINEAR DECODER INFERENCE
 
     loss = criterion(predictions, labels)   # TODO: expensive
 

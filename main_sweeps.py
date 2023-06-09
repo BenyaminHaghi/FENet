@@ -270,7 +270,7 @@ if __name__ == '__main__':
                                             ]
                         file_label = f"{run.id}-{run.name}-fold{fold}-step{elapsed_steps}"
                         saver.save_if_good(
-                            eval_res['eval/pearsonr2-xy-normed'],
+                            eval_res['pearsonr2-xy-normed'],
                             elapsed_steps,
                             states_to_save,
                             label=file_label)
