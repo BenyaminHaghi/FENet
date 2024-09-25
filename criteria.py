@@ -73,8 +73,11 @@ def pearson_r_squared_criterion(preds: np.ndarray, labels: np.ndarray):
 #     }
 
 def mean_squared_error_criterion(preds, labels):
+    if not isinstance(preds, torch.Tensor): preds = torch.tensor(preds, requires_grad=False)
+    if not isinstance(labels, torch.Tensor): labels = torch.tensor(labels, requires_grad=False)
+
     return {
-        "decoder-MSE": torch.nn.functional.mse_loss(torch.tensor(preds, requires_grad=False), torch.tensor(labels, requires_grad=False))
+        "decoder-MSE": torch.nn.functional.mse_loss(preds, labels).item()
     }
 
 
