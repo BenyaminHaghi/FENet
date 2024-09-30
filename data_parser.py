@@ -46,7 +46,6 @@ def load_hdf5_data(fname, verbose=False):
         R2 = np.transpose(matlab_data['CVR2'][:][:])
     else:
         R2 = None
-        print("WARNING: no CVR2 labels found in {fname}")
     return matlab_data, neural_cell, targets, R2
 
 def standard_scalar_normalize(ndarray) -> np.ndarray:

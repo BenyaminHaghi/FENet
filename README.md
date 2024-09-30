@@ -19,6 +19,13 @@ conda env activate mics-fenet
 
 To fine-tune on custom training data, you must prepare the recorded data as described in the paper, then configure training and view sweeps on [Weights & Biases](https://wandb.ai):
 
+### Preparing Data
+- FENet expects .mat files containing two entries:
+    - a `neural_cell` table of shape (num blocks, num channels, block size), and 
+    - a `target` table of shape (num blocks, 2), which are the labels the model will be trained on. 
+- We filter the included channels to increase data quality before storing them in these .mat files (see the paper for more details).
+- You can train FENet on your own data of this format, or update the code/write a train loop to use FENet for your application.
+
 ### Training Configuration
 Set the following environment variables:
 1. Set how many processes are used for data loading  with `FENET_MODEL_MAX_POOL_WORKERS`. `set FENET_MODEL_MAX_POOL_WORKERS=1` is a good default to disable multiprocessing. 
