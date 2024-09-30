@@ -721,7 +721,10 @@ def make_qfenet_from_quantized_statedict(data_dir, device='cpu', cache_intermedi
 
 def read_checkpoint(checkpoint):
     try:
-        config, fe_net_state, optimizer_state, scheduler_state = torch.load(checkpoint)
+        if torch.cuda.is_available(): 
+            config, fe_net_state, optimizer_state, scheduler_state = torch.load(checkpoint)
+        else:
+            config, fe_net_state, optimizer_state, scheduler_state = torch.load(checkpoint, map_location=torch.device('cpu'))
         return config, fe_net_state, optimizer_state, scheduler_state
     except Exception as e:
         raise ValueError(f"Couldn't load config from checkpoint {checkpoint}, got error: {e}")

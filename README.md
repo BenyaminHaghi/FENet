@@ -45,3 +45,7 @@ To use the best model found during the sweeps, we provide a script that re-evalu
 1. In [Select_Best_Architecture.py](./Select_Best_Architecture.py), change the `RUNS_TO_CHECK` configuration variable to match the sweep checkpoints in your `$FENET_MODEL_MODEL_SAVE_DIR`.
 2. Run `python Select_Best_Architecture.py` to load the validation data and find the highest-performance checkpoint. The selection is based on mean-squared error, but this can be changed by providing different `criteria`.   TODO: why are there two criteria provided
 3. To test the checkpoint found, update `CHECKPOINT` in [Test_Load_FENet.py](./Test_Load_FENet.py), and run that file. 
+
+The current selection is based on the norm of the Pearson's R^2 correlation between the decoded and ground-truth signals. In our dataset, this is the decoded cursor velocity versus the intended cursor velocity in an open-loop center-out task.
+
+You can change the model selection criteria by changing the `CRITERIA_FNS` and `SELECTION_CRITERIA_KEY` variables. See the available criteria functions in [criteria.py](./criteria.py), or implement your own there, and set `SELECTION_CRITERIA_KEY` to one of the keys that is provided by the `CRITERIA_FNS`.
