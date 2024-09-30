@@ -24,6 +24,7 @@ from configs import DAY_SPLITS
 from configs import MAX_POOL_WORKERS
 from configs import USE_MULTITHREADED_DATA_LOADING
 from configs import THREAD_CONTEXT
+from configs import FILE_FORMAT
 
 # data getters
 
@@ -45,6 +46,7 @@ def load_hdf5_data(fname, verbose=False):
         R2 = np.transpose(matlab_data['CVR2'][:][:])
     else:
         R2 = None
+        print("WARNING: no CVR2 labels found in {fname}")
     return matlab_data, neural_cell, targets, R2
 
 def standard_scalar_normalize(ndarray) -> np.ndarray:
@@ -156,7 +158,7 @@ def make_data_from_day(data_dir, day_name, min_R2=0, n_filtered_channels=None, c
     """
     if pbar is not None: pbar.set_description(f"loading data day {day_name}")
     else: print("making data for day", day_name)
-    data_fname = path_join(data_dir, f"FennData_{day_name}_Reshaped_30ms_cell_new.mat")
+    data_fname = path_join(data_dir, FILE_FORMAT.format(day_name))
     pickle_fname = data_fname + f".pkl"
 
     bb_list, targets_list, R2_by_channel = pickle_memoize(pickle_fname,

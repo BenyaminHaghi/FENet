@@ -1,4 +1,4 @@
-name: fenet
+name: mics-fenet
 channels:
   - pytorch-nightly
   - conda-forge
@@ -302,9 +302,6 @@ dependencies:
     - sympy
     - wandb
 variables:
-  FENET_MODEL_DATA_DIR: F:\Ben\Research\BMI\FENet\Data\N1\N1\Results\Reshaped
+  FENET_MODEL_DATA_DIR: /Path/To/Data/Files   # path to folder with 3d .mat data files 
+  FENET_MODEL_MODEL_SAVE_DIR: /Path/To/Save/Checkpoints
   FENET_MODEL_MAX_POOL_WORKERS: '1'
-  FENET_MODEL_MODEL_SAVE_DIR: F:\Ben\fenet_sweeps_save\
-  FENET_MODEL_SAVE_DIR: F:\Ben\fenet_sweeps_save
-  FENET_MODEL_SAVR_DIR: F:\Ben\fenet_sweeps_save_P3
-prefix: C:\ProgramData\Anaconda3\envs\fenet

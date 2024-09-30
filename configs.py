@@ -70,19 +70,11 @@ else:
         UNQUANTIZED_MODEL_DIR = None
 FILTERING_MIN_R2 = 0
 TRAIN_FILTERING_N_TOP_CHANNELS = 40
+FILE_FORMAT = "{}.mat"
 DAY_SPLITS = {
-       #'train': ['20190125', '20190215', '20190314', '20190507','20190625', '20190723', '20190806', '20190820', '20191008', '20191115'],
-       'train': [
-           '20190125', '20190215', '20190314', '20190507', '20190625', '20190723',
-           '20190806', '20190820', '20191008', '20191115', '20200831', '20200904',
-           '20200908', '20200911', '20200922', '20200925', '20200928',
-        ],
-       'dev-sweep-selection': [
-           '20190125', '20190215', '20190314', '20190507', '20190625', '20190723',
-        #    '20190806', '20190820', '20191008', '20191115', '20200831', '20200904',
-        #    '20200908', '20200911', '20200922', '20200925', '20200928',
-        ],
-       'test':  ['20220202', '20220211', '20220511', '20220512', '20220513', '20220518', '20220519', '20220520', '20220525', '20220526', '20220527', '20220602', '20220609', '20220624']
+       'train': ['filename1', 'filename2', 'etc...'],
+       'dev-sweep-selection': ['filename3', 'filename4', '...'],
+       'test':  ['filename5', 'filename6', 'etc...']
     }
 N_FOLDS = 9
 
@@ -102,9 +94,6 @@ NUM_FEM_BUILT = 7
 MAX_WEIGHT_DEPTH = 256
 MAX_NUM_CYCLES = 900
 EXPORT_MODEL_STRIDES = [2,2,2,2,2,2]
-QUANTIZED_DATA_FOLDER = "data.20190125"   # new sweep with full impl (pls, etc)
 
-WANDB_ENTITY = "mics-fenet"
-WANDB_PROJECT = "fenet_publishing_testbed"
-WANDB_FIX_TAGS = ["23-02-publishing"]
+WANDB_FIX_TAGS = []
 

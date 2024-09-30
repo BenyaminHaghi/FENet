@@ -161,16 +161,6 @@ if __name__ == '__main__':
 
     best_performance_by_fold = []
 
-    # # wandb_run = wandb.init(entity="mics-fenet", tags=["", *WANDB_FIX_TAGS], config=CONFIG)
-    # sweep_run = wandb.init(entity="mics-fenet",
-    #                        project="FENet_Parameter_Optimization",
-    #                        job_type="kfolds-agg",
-    #                        tags=['kfolds-sweep-agg-run', *WANDB_FIX_TAGS], config=CONFIG)
-
-    # # jankily store metrics so we can log them to the aggregation run later
-    # import hashlib; sweep_run_numeric_hash = int(hashlib.sha1(sweep_run.id.encode('utf-8')).hexdigest(), 16) % 10**8    # https://stackoverflow.com/a/16008760/10372825
-
-    # reset_wandb_env()
 
     with wandb.init(job_type='sweep run', dir = 'F:/Ben/copy_wandb_for_N1/') as run:
         config_to_pass = { k: v for k, v in wandb.config.items() if not k.startswith('_') }

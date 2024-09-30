@@ -3,8 +3,6 @@ from torch import nn
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.cross_decomposition import PLSRegression
-from multiprocessing import set_start_method
-from multiprocessing import Pool
 from multiprocessing import get_context
 from multiprocessing import shared_memory
 import sys
@@ -13,7 +11,6 @@ import sys
 
 from typing import Tuple, Optional
 
-from configs import NOT_IMPLEMENTED
 from configs import PLS_TRAIN_TEST_RATIO
 from configs import MAX_POOL_WORKERS
 from configs import USE_MULTITHREADED_PLS_TRAINING

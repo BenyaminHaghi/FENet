@@ -153,7 +153,7 @@ class FENet(nn.Module):
 
         jank_serialize = lambda int_list: '-'.join(str(x) for x in int_list)
         self.checkpoint_name = checkpoint_name or f"training_{jank_serialize(features_by_layer)}_{jank_serialize(kernel_by_layer)}_{jank_serialize(stride_by_layer)}" # used to identify models when logging
-        self.pls = pls_dims  # TODO: Create a FENet Pipeline class that handles different PLS and Decoder things
+        self.pls = pls_dims  
 
         self.features_by_layer = features_by_layer
         self.kernel_by_layer = kernel_by_layer
@@ -525,9 +525,7 @@ def cross_validated_eval(decoder, dim_red, outputs: torch.Tensor, labels: torch.
 
         if (dim_red != None):
             train_plsed, test_plsed = dim_red.fit_transform(train_inp, train_lab, dev_inp)
-            # outputs = outputs.view(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
 
-        # decoder.train(torch.vstack(train_inp), torch.vstack(train_lab))
         from sklearn.linear_model import LinearRegression
         reg = LinearRegression().fit(train_plsed.cpu().detach().numpy(), train_lab.cpu().detach().numpy())
 
@@ -569,13 +567,6 @@ def inference_batch(device, net: FENet, dim_red, decoder, inputs, labels, quanti
         inputs = inputs.to(device)
         outputs = net(inputs)
 
-        # FIX: MOVE PLSR TO BE CROSSVALIDATED
-        # if (net.pls != None and net.pls > 0):
-        #     outputs = dim_red.fit_transform(outputs, labels.cpu().detach().numpy())
-        #     outputs = outputs.view(n_chunks, n_channels*dim_red.n_out_dims)  # TODO: should dim_red.n_out_dims possibly be sum(net.features_by_layer) when pls_dims=0?
-        
-        # FIX: REMOVE STANDARD SCALAR BECASUE PLSR SHOULD ROUGHLY NORMALIZE ANYWAYS, AND ITS ANNOYING TO CROSS VALIDATE
-        # outputs = torch.from_numpy(standard_scalar_normalize(outputs)).to(device)    # additional renormalization for inference time only
         
         # decoder expcets (n_chunks, n_channels * feats_per_channel)
         if decoder_crossvalidate:
@@ -595,58 +586,6 @@ def train_batch(device, net: FENet, dim_red, decoder, optimizer, scheduler, crit
 
     net =  net.to(device)
     labels = labels.to(device)
-
-    # if(net.anneal):
-    #     net.eval()
-    #     with torch.no_grad():
-    #         test_criterion = criterion
-    #         annealed_test_criterion = criterion
-
-    #         if batch_size == None:
-    #             inputs = inputs.to(device)
-    #             outputs = net(inputs)
-    #         else:
-    #             outputs = []
-    #             for batch in torch.split(inputs, batch_size):
-    #                 batch = batch.to(device)
-    #                 outputs.append(net(batch))
-    #             outputs = torch.cat(outputs)
-    #         outputs = outputs.reshape(n_chunks, n_channels, len(net.features_by_layer))    # (batch_size * n_channels, n_samples) -> (batch_size * n_channels, n_features); TODO: should len(features_by_layer) be sum(features_by_layer)
-
-    #         if(net.pls != None and net.pls > 0):
-    #             dim_red.train(outputs, labels_np)
-    #         #print("\n\noutputs shape", outputs.shape)
-    #         if(net.pls != None and net.pls > 0):
-    #             if(not dim_red.trained):
-    #                 dim_red.train(outputs, labels_np)
-    #             outputs = dim_red.forward(outputs)
-    #         outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)
-    #         if(not decoder.trained):
-    #             decoder.train(outputs, labels_np)
-    #         predictions = decoder.forward(outputs)
-    #         loss = test_criterion(predictions.float(), labels.float())   # TODO: expensive
-
-
-    #         if batch_size == None:
-    #             inputs = inputs.to(device)
-    #             outputs = net(inputs)
-    #         else:
-    #             outputs = []
-    #             for batch in torch.split(inputs, batch_size):
-    #                 batch = batch.to(device)
-    #                 outputs.append(net(batch, use_annealed_weights=True))
-    #             outputs = torch.cat(outputs)
-    #         outputs = outputs.reshape(n_chunks, n_channels, len(net.features_by_layer))    # (batch_size * n_channels, n_samples) -> (batch_size * n_channels, n_features)
-
-    #         if(net.pls != None and net.pls > 0):
-    #             outputs = dim_red.forward(outputs)
-    #         outputs = outputs.reshape(n_chunks, n_channels*dim_red.n_out_dims)
-    #         if(not decoder.trained):
-    #             decoder.train(outputs, labels_np)
-    #         predictions = decoder.forward(outputs)
-    #         annealed_loss = annealed_test_criterion(predictions, labels)   # TODO: expensive
-
-    #     if(net.save_annealed_weights(losses=(annealed_loss, loss))): net.anneal_weights()
 
     net.train()
 
@@ -679,7 +618,7 @@ def train_batch(device, net: FENet, dim_red, decoder, optimizer, scheduler, crit
     predictions = torch.cat((pred_x, pred_y), axis = 1)
     # END LINEAR DECODER INFERENCE
 
-    loss = criterion(predictions, labels)   # TODO: expensive
+    loss = criterion(predictions, labels)  
 
     loss.backward()
     optimizer.step()
