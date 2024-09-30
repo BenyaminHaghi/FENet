@@ -138,23 +138,3 @@ class KFoldsGenerator:
     def make_folds(self):
         for train_ids, val_ids in tqdm(self.folder.split(self.dls), desc="k-folds", disable=self.silent, total=self.n_folds):
             yield [self.dls[i] for i in train_ids], [self.dls[i] for i in val_ids]
-
-
-def import_old_model_code():
-    from ben_loading_code import cnn_model
-    from FENet_parameterizable import FENet
-    fenet = FENet(
-        features_by_layer=[1]*8,
-        kernel_by_layer=[40]*7,
-        stride_by_layer=[2]*7,
-        relu_by_layer=[0]*7,
-        pls_dims=2,
-        normalize_at_end=True,
-    )
-    for i, layer in enumerate(fenet.children()):
-        print(i, layer)
-    print(list(cnn_model.state_dict().keys()))
-    raise NotImplementedError("need to import state dict from cnn_model into fenet object")
-
-if __name__ == '__main__':
-    import_old_model_code()
