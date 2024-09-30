@@ -8,8 +8,6 @@ from configs import MODEL_SAVE_DIR
 from configs import FILTERING_MIN_R2
 from configs import TRAIN_FILTERING_N_TOP_CHANNELS
 
-from configs import HYPER_PARAM_CONFIG as CONFIG
-
 from configs import N_FOLDS
 from configs import EVAL_STEPS
 from configs import MAX_EPOCHS

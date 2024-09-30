@@ -11,7 +11,6 @@ import sys
 
 from typing import Tuple, Optional
 
-from configs import PLS_TRAIN_TEST_RATIO
 from configs import MAX_POOL_WORKERS
 from configs import USE_MULTITHREADED_PLS_TRAINING
 from configs import THREAD_CONTEXT

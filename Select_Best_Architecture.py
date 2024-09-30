@@ -9,7 +9,7 @@ from FENet_parameterizable import read_checkpoint, make_fenet_from_checkpoint
 from criteria import evaluate_with_criteria, mean_squared_error_criterion, pearson_r_squared_criterion
 
 
-RUNS_TO_CHECK = "/Path/To/Model/Save/Dir/*" # used with a glob later
+RUNS_TO_CHECK = "/Path/To/Saved/Checkpoints/*" # used with a glob later
 CRITERIA_FNS = [mean_squared_error_criterion, pearson_r_squared_criterion]
 SELECTION_CRITERIA_KEY = 'pearsonr2-xy-normed'
 device = 'cuda'
