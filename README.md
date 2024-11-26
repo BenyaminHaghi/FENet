@@ -34,8 +34,3 @@ If `SAVE_LOCAL_DATA_CACHE` is `True` in `configs.py`, then a pickle file of the 
 2. Create a sweep (step 2 in [this tutorial](https://docs.wandb.ai/guides/sweeps/existing-project#2-create-a-sweep)) but use the FENet [sweep_config.yml](./sweep_config.yml).
 3. Run the `wandb agent` command in the root of this repository to start running sweeps.
 
-### Ease of Use
-- run the sweeps and save the best model
-- pick the model with the highest performance
-- load the model for use 
-
