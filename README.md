@@ -1,5 +1,6 @@
 # FENet: a lightweight, hardware-ready threshhold crossing replacement for extracting single-channel dynamics 
 
+This is the code for [Haghi. et. al. "Enhanced control of a brain–computer interface by tetraplegic participants via neural-network-mediated feature extraction"](https://www.nature.com/articles/s41551-024-01297-1). This project was a collaboration between Prof. Azita Emami's [Mixed-Mode Integrated Circuits lab](https://www.mics.caltech.edu/), and the [Prof. Richard Anderson lab](https://www.vis.caltech.edu/) at Caltech. We are using this model for decoding experiments in monkeys and humans—please reach out if you'd like to discuss using it too! 
 
 ## Getting Started
 
