@@ -13,8 +13,8 @@ from datetime import datetime
 import json
 
 N = 8
-WANDB_ENTITY = "mics-fenet"
-WANDB_PROJECT = "20230324_fenet_sweeps_ben"
+WANDB_ENTITY = "fenet"
+WANDB_PROJECT = "20230324_fenet_sweeps"
 METRIC = 'cross-validation-avg-r2'
 PERF_METRIC = 'efficiency/operations-per-eval'
 params_to_plot = [f"kernel{i}" for i in range(1, N)] + [f"stride{i}" for i in range(1, N)] + ['n_feat_layers']
