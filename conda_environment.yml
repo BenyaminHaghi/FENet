@@ -302,9 +302,9 @@ dependencies:
     - sympy==1.11.1
     - wandb==0.13.9
 variables:
-  FENET_MODEL_DATA_DIR: F:\Ben\Research\BMI\FENet\Data\N1\N1\Results\Reshaped
+  FENET_MODEL_DATA_DIR: C:\BBData
   FENET_MODEL_MAX_POOL_WORKERS: '1'
-  FENET_MODEL_MODEL_SAVE_DIR: F:\Ben\fenet_sweeps_save\
-  FENET_MODEL_SAVE_DIR: F:\Ben\fenet_sweeps_save
-  FENET_MODEL_SAVR_DIR: F:\Ben\fenet_sweeps_save_P3
+  FENET_MODEL_MODEL_SAVE_DIR: C:\fenet_sweeps_save\
+  FENET_MODEL_SAVE_DIR: C:\fenet_sweeps_save
+  FENET_MODEL_SAVR_DIR: C:\fenet_sweeps_save_P3
 prefix: C:\ProgramData\Anaconda3\envs\fenet
