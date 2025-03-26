@@ -16,16 +16,11 @@ import pandas as pd
 
 from math import sqrt
 
-from configs import NOT_IMPLEMENTED # todo-clean: this is used as a placeholder input to arguments that aren't used in depended-on functions. Those argument should either be documented and used, or removed.
+from configs import NOT_IMPLEMENTED 
 from configs import FENET_MEMLIMIT_SERIAL_BATCH_SIZE
 
 def devicify(device, *args):
     return (x.to(device) for x in args)
-
-# def linear_decoder_loss(outputs, labels, device):
-#     outputs, labels = devicify(device, outputs, labels)
-#     loss, *_ = compute_linear_decoder_loss_preds(outputs, labels, device, quantization=None)
-#     return loss
 
 def pearson_r_squared_criterion(preds: np.ndarray, labels: np.ndarray):
     from scipy.stats import pearsonr
@@ -38,94 +33,10 @@ def pearson_r_squared_criterion(preds: np.ndarray, labels: np.ndarray):
         'pearsonr2-xy-normed': np.sqrt((pr2x**2 + pr2y**2) / 2)
     }
 
-# def R2_avg_criterion(preds_dl, labels_dl, device, quantization=None):
-#     tot_r2 = 0
-#     for preds, labels in zip(preds_dl, labels_dl):
-#         tot_r2 += r2_score(labels, preds)
-#     return { 'timely/avg-decoder-R2': tot_r2 / len(preds_dl) }
-
-# def R2_hist_criterion(preds_dl, labels_dl, device, quantization=None):
-#     r2s = []
-#     for preds, labels in zip(preds_dl, labels_dl):
-#         r2 = r2_score(labels, preds)
-#         r2s.append(r2)
-#     wandb.log({ 'histogramhistogramhistogram': wandb.Histogram(np.array(r2s).flatten()) }, commit=False)
-#     return { 'timely/decoder-R2': wandb.Histogram(np.array(r2s).flatten()) }
-
-# def directional_R2_criterion(preds_dl, labels_dl, device, quantization=None):
-#
-#     #labels_dl = [labels.cpu().detach().numpy() for labels in labels_dl]
-#
-#     xcomp_dl = [(preds[:, 0], labels[:, 0]) for preds, labels in zip(preds_dl, labels_dl)]
-#     ycomp_dl = [(preds[:, 1], labels[:, 1]) for preds, labels in zip(preds_dl, labels_dl)]
-#
-#     xcomp_r2s = [r2_score(labels, preds) for preds, labels in xcomp_dl]
-#     ycomp_r2s = [r2_score(labels, preds) for preds, labels in ycomp_dl]
-#
-#     x_avg_r2 = sum(xcomp_r2s) / len(xcomp_r2s)
-#     y_avg_r2 = sum(ycomp_r2s) / len(ycomp_r2s)
-#
-#     return {
-#         'timely/decoder-x-R2': x_avg_r2,
-#         'timely/decoder-y-R2': y_avg_r2,
-#         'timely/decoder-xy-avg-R2': (sum(xcomp_r2s) + sum(ycomp_r2s)) / len(xcomp_r2s) / 2,
-#         'timely/decoder-xy-norm-R2': sqrt((x_avg_r2**2 + y_avg_r2**2) / 2),
-#     }
-
 def mean_squared_error_criterion(preds, labels):
     return {
         "decoder-MSE": torch.nn.functional.mse_loss(torch.tensor(preds, requires_grad=False), torch.tensor(labels, requires_grad=False))
     }
-
-
-# def axes_plot_criterion(preds_dl, labels_dl, device, quantization=None, day_names=None, compatibility='wandb'):
-#     import matplotlib
-#     if compatibility == 'wandb': matplotlib.use('agg')   # see tag https://stackoverflow.com/a/7821917/10372825
-#     from matplotlib import pyplot as plt
-#     from scipy.stats import pearsonr
-#     labels_dl = list(labels_dl)
-#     # for i, (preds, labels) in enumerate(zip(preds_dl, labels_dl)):
-#     #     if isinstance(preds, torch.Tensor):
-#     #         preds_dl[i] = preds.cpu().detach().numpy()
-#     #     if isinstance(labels, torch.Tensor):
-#     #         labels_dl[i] = labels.cpu().detach().numpy()
-
-#     # only show up to two lines
-#     preds_dl = preds_dl[:2]
-#     labels_dl = labels_dl[:2]
-
-#     xcomp_dl = [(preds[:, 0], labels[:, 0]) for preds, labels in zip(preds_dl, labels_dl)]
-#     ycomp_dl = [(preds[:, 1], labels[:, 1]) for preds, labels in zip(preds_dl, labels_dl)]
-
-#     xcomp_r2s = [pearsonr(labels, preds).statistic**2 for preds, labels in xcomp_dl]
-#     ycomp_r2s = [pearsonr(labels, preds).statistic**2 for preds, labels in ycomp_dl]
-
-#     PLOT_START_INDEX = 0
-#     PLOT_FIRST_N_POINTS = 500
-#     if day_names is None: day_names = list(range(len(preds_dl)))
-#     fig, axs = plt.subplots(2, 1, figsize=(14, 7), sharex='all', sharey='all', squeeze=True)
-#     for ax, ax_name, preds_labs_in_dim, r2s_in_dim in zip(axs, ['x', 'y'], [xcomp_dl, ycomp_dl], [xcomp_r2s, ycomp_r2s]):
-#         preds_dl, labels_dl = zip(*preds_labs_in_dim)
-#         for day, r2, preds in zip(day_names, r2s_in_dim, preds_dl):
-#             ax.plot(preds[PLOT_START_INDEX:PLOT_START_INDEX+PLOT_FIRST_N_POINTS], label=f"Day {day}, pearson r={r2:.4f}")
-#         ax.set_prop_cycle(None)    # reset the color cycle to align colors, https://stackoverflow.com/a/24283087/10372825
-#         for day, r2, labels in zip(day_names, r2s_in_dim, labels_dl):
-#             ax.plot(labels[PLOT_START_INDEX:PLOT_START_INDEX+PLOT_FIRST_N_POINTS], ":", label=f"Day {day} ground truth")
-#         ax.set_ylabel(ax_name + ' (normalized)')
-#         ax.set_ylim(-1.5, 1.5)
-#         ax.legend()
-
-#     axs[-1].set_xlabel("Time (steps)")
-#     np_fig = convert_to_buf(fig)
-#     # clear the figure
-#     plt.close('all')
-
-#     match compatibility:
-
-#         case 'wandb':
-#             return { 'timely/decoder-preds-chart': wandb.Image(np_fig) }
-#         case 'matplot':
-#             return { 'timely/decoder-preds-chart': np_fig }
 
 @DeprecationWarning
 def color_scatter_criterion(preds_dl, labels_dl, device, quantization=None):
@@ -219,7 +130,6 @@ class CriterionConverter(FENetCriterion):
         return self.evaluate(outputs_dl, labels_dl)
 
 class EfficiencyCriterion(FENetCriterion):
-    # FIXME: convert to just a pure function of a FENet
     def __init__(self, fe_net: FENet):
         """
         Figure out how many calculations are needed for one inference
