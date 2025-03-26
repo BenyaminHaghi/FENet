@@ -40,11 +40,6 @@ import pickle
 from os import environ
 import traceback
 
-# todo-experiments: use pytorch lightning's auto-batch-sizer and auto-LR-er?
-# todo-experiments: implement wanm up/annealing/use schedulers, gradient accumulation?
-# todo-experiments: test it out using quantization, see the model_quantization branch
-
-
 
 def reset_wandb_env():
     # from https://github.com/wandb/examples/blob/master/examples/wandb-sweeps/sweeps-cross-validation/train-cross-validation.py
@@ -90,13 +85,9 @@ def initialize(run = None, config=None):
                             [config[f'stride{i}'] for i in range(1, N)],
                             [config[f'relu{i}']   for i in range(1, N)],
                             **{ k: config[k] for k in ['pls_dims', 'normalize_at_end'] + ['annealing_alpha', 'thermal_sigma', 'anneal'] if k in config }   # pass additional config kwargs if they are in the config
-                            # annealing_alpha=config.get('annealing_alpha'),
-                            # thermal_sigma=config['thermal_sigma'],
-                            # anneal=config['anneal']
                 )
 
     fe_net.load_state_dict(make_daubechies_wavelet_initialization(fe_net))
-    #fe_net = make_fenet_from_checkpoint(BEST_CURRENT_MODEL, device, override_shape=None, pls_dims=config['pls_dims'])
     fe_net.to(device)
 
 
@@ -108,26 +99,12 @@ def initialize(run = None, config=None):
 
     if config['decoder'] == 0:
             decoder = Linear_Decoder(train_batch_size=train_batch_size, device=device, quantization=None)
-    # elif config['decoder'] == 1:
-    #         decoder = RNN_decoder(
-    #              fe_net.pls_dims*N if fe_net.pls_dims is not None else sum(fe_net.features_by_layer),   # @sbulfer shouldn't it be pls_dims, rather than pls_dims * N?
-    #              2,
-    #              3,
-    #              2,
-    #              50,
-    #              0.05,
-    #              0.001,
-    #              0.05,
-    #              device,
-    #              quantization=None)
-    #         decoder.to(device)
 
     loss_fn = MSELoss(reduction='mean')
 
     wandb.watch(fe_net, log_freq=10, log='all', log_graph=True)
 
     optimizer = optim.AdamW(fe_net.parameters(), lr=config['optim.lr'], eps=config['optim.adamw_eps'], weight_decay=config['optim.adamw_wd'])
-    # scheduler = CosineAnnealingWarmRestarts(optimizer, config['optim.cos_anneal_T_0'])
     scheduler = None
 
     return device, fe_net, pls_mdl, decoder, loss_fn, optimizer, scheduler, run, config
@@ -161,30 +138,9 @@ if __name__ == '__main__':
 
     best_performance_by_fold = []
 
-    # # wandb_run = wandb.init(entity="mics-fenet", tags=["", *WANDB_FIX_TAGS], config=CONFIG)
-    # sweep_run = wandb.init(entity="mics-fenet",
-    #                        project="FENet_Parameter_Optimization",
-    #                        job_type="kfolds-agg",
-    #                        tags=['kfolds-sweep-agg-run', *WANDB_FIX_TAGS], config=CONFIG)
-
-    # # jankily store metrics so we can log them to the aggregation run later
-    # import hashlib; sweep_run_numeric_hash = int(hashlib.sha1(sweep_run.id.encode('utf-8')).hexdigest(), 16) % 10**8    # https://stackoverflow.com/a/16008760/10372825
-
-    # reset_wandb_env()
-
     with wandb.init(job_type='sweep run', dir = 'F:/Ben/copy_wandb_for_N1/') as run:
         config_to_pass = { k: v for k, v in wandb.config.items() if not k.startswith('_') }
 
-    # with wandb.init(
-    #     entity=sweep_run.entity, project=sweep_run.project,
-    #     job_type="kfolds-worker", group=f"kfolds-{sweep_run.name}-{sweep_run.id}",
-    #     tags=["kfolds-worker", f"sweep-{sweep_run.sweep_id}", f"kfolds-for-{sweep_run.name}-{sweep_run.id}", *WANDB_FIX_TAGS],
-    #     config=config_to_pass) as run:
-
-        # store fold info in config for later filtering and grouping
-        # run.config['agg-run.id'] = sweep_run.id
-        # run.config['agg-run.name'] = sweep_run.name
-        # run.config['agg-run.numeric-hash'] = sweep_run_numeric_hash  # numeric constant tied to config for coloring by config via color axis
         run.config['n_channels'] = TRAIN_FILTERING_N_TOP_CHANNELS
 
         for fold, (train_dl, dev_dl) in enumerate(k_folds_manager.make_folds()):
@@ -230,11 +186,8 @@ if __name__ == '__main__':
             # train loop!
             for epoch_n in trange(MAX_EPOCHS, desc=f"{run.name if run else 'unnamed_run'} | epochs", leave=False):
                 for i, (inputs, labels) in enumerate(pbar := tqdm(train_dl, desc="batches", leave=False)):
-                    # print("STAT: pbar should be exist")
-                    #print("train loop entered")
                     pbar.set_description(f"tot_step: {elapsed_steps}. batches")
 
-                    #print("about to train")
                     n_chunks, n_channels, n_samples = inputs.shape
                     decoder.train_batch_size = n_chunks
                     loss, _ = train_batch(  device,
@@ -253,11 +206,6 @@ if __name__ == '__main__':
                     if elapsed_steps % EVAL_STEPS == 0:
 
                         eval_res = evaluate_with_criteria(fe_net, pls_mdl, decoder, dev_dl, [
-                            # partial(R2_avg_criterion, device=device, quantization=quantization),
-                            # partial(R2_hist_criterion, device=device, quantization=quantization),
-                            # partial(directional_R2_criterion, device=device, quantization=quantization),
-                            # partial(axes_plot_criterion, device=device, quantization=quantization, day_names=[fold]),
-                            # mean_squared_error_criterion,
                             pearson_r_squared_criterion
                         ], device, quantization=quantization)
 
@@ -274,13 +222,7 @@ if __name__ == '__main__':
                             elapsed_steps,
                             states_to_save,
                             label=file_label)
-
-                        # jankily add additional metrics
                         additional = {
-                            # 'compute-cost': compute_cost,
-                            # 'unquantized-R², (8, 5)-over-cost': eval_res['eval/decoder-retrain/R²'] / compute_cost,
-                            # 'unquantized-perf-cost-ratio': eval_res['eval/timely/avg-decoder-R2'] / compute_cost,
-                            # 'unquantized-perf-cost-combo': eval_res['eval/timely/avg-decoder-R2'] - compute_cost / COMPUTE_COST_DIVISOR,
                         }
                         
 
