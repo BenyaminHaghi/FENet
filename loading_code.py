@@ -12,8 +12,8 @@ wt_feature_num = 8
 time_duration = '30ms'
 day_label = '20190125'    
 
-data_dir_results = 'F:/Ben/Research/BMI/FENet/Data/N1/Online Runs/20220217/Models/'
-data_dir_data = 'F:/Ben/Research/BMI/FENet/Data/N1/N1/Results/Reshaped/'
+data_dir_results = 'C:/Models/'
+data_dir_data = 'C:/BBData'
 data_dir_save = './'    
     
 print('*********************Importing Libraries: *********************')
@@ -308,49 +308,4 @@ def Loss_Function_Test(X, y, others_beta_x, others_beta_y, b0_x, b0_y):
 old_model = LoadModel_exp2(n_neural_channels, wt_feature_num)
 old_model.load_state_dict(torch.load(data_dir_results + 'Latest_FENet_Model.pth', map_location = device))
 cnn_model = NewModel_exp2(old_model)
-
-# if gpu_mode == 1:
-#     cnn_model.to(device)  
-    
-# matlab_data = h5py.File(data_dir_data + 'FennData_'+day_label+'_Reshaped_'+time_duration+'_cell_new.mat','r')
-# neural_cell = matlab_data['neural_cell'][()]
-# n_neural_channels = np.transpose(np.asarray(matlab_data[neural_cell[0][0]])).shape[2]
-
-# targets = np.transpose(matlab_data['targets'][:][:]).astype(np.float32)   
-# tagrets = target_normalization_centralization(targets)  
-
-     
-# targets_index = 0
-# for tt in range(neural_cell.shape[1]):
-#     temp_neural = np.transpose(np.asarray(matlab_data[neural_cell[0][tt]]))
-#     temp_neural = temp_neural.transpose(0,2,1)
-#     temp_neural = Variable(torch.Tensor(temp_neural).type(torch.FloatTensor), requires_grad=False)
-#     temp_targets = Variable(torch.Tensor(targets[targets_index:targets_index+temp_neural.shape[0]]).type(torch.FloatTensor), requires_grad=False)
-#     if neural_cell.shape[1] > 1:
-#         flag_test = 1
-#         test_ds = TensorDataset(temp_neural, temp_targets)
-#         test_dl_list.append(DataLoader(test_ds, batch_size = temp_neural.shape[0], shuffle = False, num_workers = 0))    
-#         targets_index = targets_index + temp_neural.shape[0]
-#     elif neural_cell.shape[1] == 1:
-#         flag_test = 0
-#         test_ds = TensorDataset(temp_neural, temp_targets)
-#         test_dl = DataLoader(test_ds, batch_size = temp_neural.shape[0], shuffle = False, num_workers = 0)                                  
-    
-# del matlab_data, temp_neural, temp_targets, test_ds
-# cnn_model.eval()
-# with torch.no_grad():
-#     for i, (xx,yy) in enumerate(test_dl):
-#         if gpu_mode == 1:
-#             xx = xx.cuda()
-#             yy = yy.cuda()                          
-#         x_feat, lpf1_wt, hpf1_wt, lpf2_wt, hpf2_wt, lpf3_wt, hpf3_wt, lpf4_wt, hpf4_wt, lpf5_wt, hpf5_wt, lpf6_wt, hpf6_wt, lpf7_wt, hpf7_wt = cnn_model(xx)     
-#         if i == 0:
-#             x_feat_all = x_feat.cpu().detach().numpy()
-#             yy_all = yy.cpu().detach().numpy()
-#         else:
-#             x_feat_all = np.concatenate((x_feat_all, x_feat.cpu().detach().numpy()) , axis = 0)
-#             yy_all = np.concatenate((yy_all, yy.cpu().detach().numpy()) , axis = 0)
-                
-# savemat(data_dir_save + 'Neural_features_targets_FENet_LD_DropOut_db20_Scale7_Top40_'+day_label+'.mat', {"x_feat": x_feat_all, "targets": yy_all})
-# del test_dl, xx, x_feat, x_feat_all, yy, yy_all, neural_cell, targets
 
