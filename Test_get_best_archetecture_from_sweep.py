@@ -9,7 +9,7 @@ from FENet_parameterizable import read_checkpoint, make_fenet_from_checkpoint
 from criteria import evaluate_with_criteria, mean_squared_error_criterion, pearson_r_squared_criterion
 
 
-RUN_NAME = "F:/Ben/fenet_sweeps_save/absurd-sweep-4" # used with a glob later
+RUN_NAME = "./fenet_sweeps_save/absurd-sweep-4" # used with a glob later
 device = 'cuda'
 
 def get_model_evals(path, test_dl):
