@@ -9,8 +9,6 @@ from multiprocessing import get_context
 from multiprocessing import shared_memory
 import sys
 
-# from cuml import LinearRegression # TODO: replace cpu linear regression with rapids cuda linear regression
-
 from typing import Tuple, Optional
 
 from configs import NOT_IMPLEMENTED
@@ -387,20 +385,9 @@ def linear_decoder_predict_day(outputs: torch.Tensor, labels: torch.Tensor, devi
 
     return pred
 
-# deprecated
-# def linear_decoder_criterion(outputs_dl, labels_dl, device, pls=2, quantization=None):
-#     criterion=nn.MSELoss(reduction='mean')
-#     for outputs, labels in zip(outputs_dl, labels_dl):
-#         loss, _, *_ = compute_linear_decoder_loss_preds(outputs, labels, device, quantization, criterion)
-#     return loss
 
 def r2_score(labels, preds):
-    # from sklearn.metrics import r2_score as r2_sklearn
-    # print(r2_score(labels, preds))
-    # return r2_score(labels, preds)  # apparently this just works
-
     assert preds.shape == labels.shape
-    # assert preds.shape[1] == 2
 
     if isinstance(preds, torch.Tensor):
         if isinstance(labels, np.ndarray):
@@ -425,9 +412,3 @@ def r2_score(labels, preds):
 
     raise NotImplementedError(f"cannot compute R2 for type {type(preds)}, expected torch.Tensor or np.ndarray")
 
-    # calc_r2 = lambda preds, labels: 1 - (np.sum(np.power(labels - preds, 2))) / (np.sum(np.power(labels - np.mean(labels), 2)))
-
-
-# def quantized_linear_decoder_criterion(outputs_dl, labels_dl, device):
-#     for outputs, labels in zip(outputs_dl, labels_dl):
-#         loss, preds, learned_params = decoder_loss(outputs, labels, pls_mode=NOT_IMPLEMENTED, using_gpu='cuda' in device)
