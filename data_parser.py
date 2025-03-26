@@ -137,8 +137,6 @@ def pickle_memoize(fname, creation_callback, verbose=False, writefile=True):
             return load(rf)
     except (FileNotFoundError, UnpicklingError, EOFError):
         if verbose: print(f"    did not find pickle file '{fname}' or it was corrupted :( making it...")
-    # except UnpicklingError:
-    #     if verbose: print(f"    pickle file was corrupted! remaking...")
         got = creation_callback()
         if writefile:
             try:
@@ -207,7 +205,6 @@ def make_total_training_data(data_dir, min_R2=0, n_filtered_channels=None, days=
 
     print(days_to_get)
 
-    #len(days_to_get)
     if(USE_MULTITHREADED_DATA_LOADING):
         with get_context(THREAD_CONTEXT).Pool(min(MAX_POOL_WORKERS, len(make_data_args))) as pool:
             data_by_day = dict(zip(days_to_get, pool.map(lambda kwargs: make_data_from_day(**kwargs), make_data_args)))
@@ -225,12 +222,6 @@ def make_total_training_data(data_dir, min_R2=0, n_filtered_channels=None, days=
             if days is not None and day_label not in days: continue
             split_data[split] += data_by_day[day_label]
 
-    # split_data = { split: sum(data_by_day[day_name] for day_name in split_days if days is None or day_name in days)
-    #         for split, split_days in day_splits.items() if splits is None or split in splits }
-
-    # not sure what the purpose of this is? it assumes that config only has info for train, dev, test splits which is wrong
-    # if (any(k not in ['train', 'dev', 'test'] for k in split_data)):
-    #     return split_data   # requested special data, lets just return the dict directly
     if splits is not None:
         return (v for k, v in split_data.items() if k in splits)
 
